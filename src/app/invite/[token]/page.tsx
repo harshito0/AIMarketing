@@ -182,9 +182,10 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
               <input
                 type="text"
                 required
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Harshit Singh"
+                placeholder="Enter full name"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
               />
             </div>
@@ -194,9 +195,10 @@ export default function AcceptInvitationPage({ params }: { params: Promise<{ tok
               <input
                 type="text"
                 required
+                autoComplete="off"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. harshit"
+                placeholder="Choose a username"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white transition-all"
               />
             </div>

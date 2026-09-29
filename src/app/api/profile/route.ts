@@ -36,7 +36,7 @@ export async function PATCH(req: Request) {
 
     const currentProfile = authResult.user;
     const body = await req.json().catch(() => ({}));
-    const { name, avatar, username, title } = body;
+    const { name, avatar, username, title, department } = body;
 
     const updatedProfile = { ...currentProfile };
 
@@ -50,6 +50,10 @@ export async function PATCH(req: Request) {
 
     if (title !== undefined) {
       updatedProfile.title = title.trim();
+    }
+
+    if (department !== undefined) {
+      updatedProfile.department = department.trim();
     }
 
     // Handle Username Update
@@ -97,11 +101,13 @@ export async function PATCH(req: Request) {
             role: currentProfile.role || 'ADMIN',
             avatar: updatedProfile.avatar || '',
             title: updatedProfile.title || '',
+            department: updatedProfile.department || 'Development',
           },
           update: {
             name: updatedProfile.name,
             avatar: updatedProfile.avatar || '',
             title: updatedProfile.title || '',
+            department: updatedProfile.department || 'Development',
           },
         });
       }

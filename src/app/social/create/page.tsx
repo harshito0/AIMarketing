@@ -385,7 +385,7 @@ function CreateSocialPostContent() {
   };
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
       <DashboardLayout>
         <div className="space-y-6">
           {/* Top Bar */}

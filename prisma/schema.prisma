@@ -8,14 +8,15 @@ generator client {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      String   @default("TEAM")
-  avatar    String
-  title     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  role       String   @default("TEAM")
+  avatar     String
+  title      String
+  department String?  @default("Development")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   auditLogs AuditLog[]
 }
@@ -209,25 +210,39 @@ model SOP {
 }
 
 model Quotation {
-  id              String   @id @default(cuid())
-  quotationNumber String   @unique
-  date            String
-  validUntil      String
-  clientId        String
-  clientName      String
-  clientGstin     String?
-  billingAddress  String?
-  itemsJson       String   @default("[]")
-  subtotal        Float    @default(0)
-  taxAmount       Float    @default(0)
-  totalAmount     Float    @default(0)
-  currency        String   @default("INR")
-  status          String   @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED, EXPIRED
-  notes           String?
-  bankDetails     String?
-  terms           String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  quotationNumber     String   @unique
+  prefix              String?  @default("Q")
+  suffix              String?  @default("")
+  date                String
+  validUntil          String?
+  clientId            String?
+  clientName          String
+  clientPhone         String?
+  clientEmail         String?
+  clientGstin         String?
+  billingAddress      String?
+  itemsJson           String   @default("[]")
+  subtotal            Float    @default(0)
+  taxableAmount       Float?   @default(0)
+  cgst                Float?   @default(0)
+  sgst                Float?   @default(0)
+  igst                Float?   @default(0)
+  taxAmount           Float    @default(0)
+  discountBeforeTax   Float?   @default(0)
+  discountAfterTax    Float?   @default(0)
+  serviceCharge       Float?   @default(0)
+  otherCharges        Float?   @default(0)
+  roundOff            Float?   @default(0)
+  autoRoundOff        Boolean? @default(true)
+  totalAmount         Float    @default(0)
+  currency            String   @default("INR")
+  status              String   @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED, EXPIRED
+  notes               String?
+  bankDetails         String?
+  terms               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Invoice {
@@ -242,6 +257,7 @@ model Invoice {
   billingAddress        String?
   itemsJson             String   @default("[]")
   subtotal              Float    @default(0)
+  taxableAmount         Float?   @default(0)
   cgst                  Float    @default(0)
   sgst                  Float    @default(0)
   igst                  Float    @default(0)
@@ -255,6 +271,24 @@ model Invoice {
   razorpayPaymentId     String?
   notes                 String?
   terms                 String?
+  seriesName            String?  @default("Sales Invoice")
+  invoicePrefix         String?  @default("INV")
+  invoiceSuffix         String?  @default("")
+  bookName              String?  @default("Sales Taxable")
+  shippingAddress       String?
+  quotationNo           String?
+  placeOfSupply         String?
+  rateType              String?  @default("EXCLUSIVE_GST")
+  discountType          String?  @default("PERCENTAGE")
+  discountValue         Float?   @default(0)
+  discountAmount        Float?   @default(0)
+  serviceCharge         Float?   @default(0)
+  otherCharges          Float?   @default(0)
+  roundOff              Float?   @default(0)
+  bankDetailsJson       String?
+  paymentDetailsJson    String?
+  customFieldsJson      String?  @default("[]")
+  attachmentUrl         String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -438,6 +472,7 @@ model Invitation {
   email         String
   name          String?
   role          String   @default("TEAM_MEMBER")
+  department    String?  @default("Development")
   passcode      String   @unique
   tokenHash     String?
   invitedBy     String?

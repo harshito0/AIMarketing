@@ -72,6 +72,21 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
     });
 
     if (dbUser) {
+      let dept = (dbUser as any).department || 'Development';
+      try {
+        const emp = await prisma.employee.findFirst({
+          where: {
+            OR: [
+              { email: dbUser.email },
+              { name: dbUser.name }
+            ]
+          }
+        });
+        if (emp?.department) {
+          dept = emp.department;
+        }
+      } catch {}
+
       userProfile = {
         uid: dbUser.id,
         name: dbUser.name,
@@ -84,6 +99,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         updatedAt: dbUser.updatedAt.toISOString(),
         avatar: dbUser.avatar,
         title: dbUser.title,
+        department: dept,
       };
     }
   } catch (dbErr) {
@@ -123,12 +139,16 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         name: decodedName || (isHarshit ? 'Harshit Singh' : 'Aman Sir'),
         email: lookupEmail || (isHarshit ? 'harshitsingh19622@gmail.com' : 'aman@codekap.com'),
         username: isHarshit ? 'harshitsingh19622' : 'aman',
-        role: 'ADMIN',
+        role: isHarshit ? 'TEAM_MEMBER' : 'ADMIN',
         status: 'ACTIVE',
         emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        title: isHarshit ? 'Lead Architect / Admin' : 'Super Admin / Founder & CEO',
+        title: isHarshit ? 'Lead Architect / Senior Engineer' : 'Super Admin / Founder & CEO',
+        department: isHarshit ? 'Development' : 'Administration & Management',
+        avatar: isHarshit
+          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit'
+          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       };
     } else {
       userProfile = {
@@ -141,6 +161,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        department: 'Development',
       };
     }
   }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '../../components/dashboard-layout';
+import { AuthGuard } from '../../components/auth-guard';
 import { 
   Sparkles, 
   Image as ImageIcon, 
@@ -139,7 +140,8 @@ export default function CreativeStudioPage() {
   const videosList = creatives.filter(c => c.type === 'VIDEO');
 
   return (
-    <DashboardLayout>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
+      <DashboardLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -568,6 +570,7 @@ export default function CreativeStudioPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+      </DashboardLayout>
+    </AuthGuard>
   );
 }

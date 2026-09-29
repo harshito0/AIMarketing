@@ -8,7 +8,7 @@ import { Megaphone, Sparkles, TrendingUp, DollarSign, Eye, MousePointer, Award, 
 
 export default function MarketingWorkspacePage() {
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
       <DashboardLayout>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

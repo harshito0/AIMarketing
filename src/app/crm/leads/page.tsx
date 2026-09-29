@@ -170,7 +170,7 @@ export default function LeadsPage() {
   };
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
       <DashboardLayout>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

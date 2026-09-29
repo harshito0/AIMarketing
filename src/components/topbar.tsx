@@ -3,31 +3,88 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Plus, Shield, CheckCircle, Clock, MessageSquare } from 'lucide-react';
+import { Search, Bell, Plus, Shield, CheckCircle, Clock, MessageSquare, CheckSquare, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useScreenTime } from '@/components/screen-time-tracker';
 
+function normalizeDept(dept?: string): 'DEVELOPMENT' | 'MARKETING' | 'SALES' | 'MANAGEMENT' | 'ALL' {
+  if (!dept) return 'DEVELOPMENT';
+  const d = dept.toLowerCase();
+  if (d === 'all') return 'ALL';
+  if (d.includes('dev') || d.includes('eng') || d.includes('tech') || d.includes('soft')) return 'DEVELOPMENT';
+  if (d.includes('market') || d.includes('social') || d.includes('content') || d.includes('creative')) return 'MARKETING';
+  if (d.includes('sale') || d.includes('crm') || d.includes('lead') || d.includes('biz') || d.includes('business')) return 'SALES';
+  if (d.includes('admin') || d.includes('manage') || d.includes('exec') || d.includes('owner') || d.includes('ceo') || d.includes('finance')) return 'MANAGEMENT';
+  return 'DEVELOPMENT';
+}
+
 export function Topbar() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, role, department, activeDepartment } = useAuth();
   const { formattedTodayTime, isTabActive } = useScreenTime();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  const userNormDept = normalizeDept(activeDepartment || department);
+  const isAdmin = role === 'ADMIN' || profile?.email === 'aman@codekap.com';
+
   const quickSearchItems = [
-    { title: 'Screen Time & Work Activity', category: 'Analytics', href: '/analytics/screen-time' },
-    { title: 'Jeevansphere Client Profile', category: 'Client', href: '/clients' },
-    { title: 'Website Development SOP', category: 'SOP', href: '/sop' },
-    { title: 'Performance Marketing Campaign', category: 'Marketing', href: '/workspaces/marketing' },
-    { title: 'Tax & GST Invoices', category: 'Finance', href: '/finance/invoices' },
-    { title: 'Lead Pipeline Kanban', category: 'CRM', href: '/crm/pipeline' },
-    { title: 'Task Delegation Hub', category: 'Tasks', href: '/tasks' },
+    { title: 'Screen Time & Work Activity', category: 'Analytics', href: '/analytics/screen-time', departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+    { title: 'Website Development SOP', category: 'SOP', href: '/sop', departments: ['DEVELOPMENT', 'MANAGEMENT'] },
+    { title: 'Development Workspace', category: 'Engineering', href: '/workspaces/dev', departments: ['DEVELOPMENT', 'MANAGEMENT'] },
+    { title: 'My Sprint Tasks', category: 'Tasks', href: '/tasks', departments: ['DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+    { title: 'Daily Work Logs', category: 'Logs', href: '/work-logs', departments: ['DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+    { title: 'Create Social Post', category: 'Social', href: '/social/create', departments: ['MARKETING', 'MANAGEMENT'] },
+    { title: 'Social Accounts & Analytics', category: 'Social', href: '/social/accounts', departments: ['MARKETING', 'MANAGEMENT'] },
+    { title: 'Creative AI Studio', category: 'Marketing', href: '/creative-studio', departments: ['MARKETING', 'MANAGEMENT'] },
+    { title: 'Performance Marketing Campaign', category: 'Marketing', href: '/workspaces/marketing', departments: ['MARKETING', 'MANAGEMENT'] },
+    { title: 'Lead Pipeline Kanban', category: 'CRM', href: '/crm/pipeline', departments: ['SALES', 'MANAGEMENT'] },
+    { title: 'Leads Directory', category: 'CRM', href: '/crm/leads', departments: ['SALES', 'MANAGEMENT'] },
+    { title: 'Tax & GST Invoices', category: 'Finance', href: '/finance/invoices', departments: ['MANAGEMENT'] },
+    { title: 'Client Business Hub', category: 'Clients', href: '/clients', departments: ['SALES', 'MANAGEMENT'] },
   ];
 
-  const filteredItems = quickSearchItems.filter(item =>
+  const allowedSearchItems = quickSearchItems.filter((item) => {
+    if (userNormDept === 'ALL' && isAdmin) return true;
+    return item.departments.includes(userNormDept) || item.departments.includes('ALL');
+  });
+
+  const filteredItems = allowedSearchItems.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  let searchPlaceholder = 'Search leads, projects, invoices, SOPs... (Ctrl+K)';
+  let quickActionButton = {
+    label: 'New Lead / Project',
+    href: '/crm/leads',
+    icon: Plus,
+  };
+
+  if (userNormDept === 'DEVELOPMENT') {
+    searchPlaceholder = 'Search tasks, repos, dev SOPs... (Ctrl+K)';
+    quickActionButton = {
+      label: 'My Tasks',
+      href: '/tasks',
+      icon: CheckSquare,
+    };
+  } else if (userNormDept === 'MARKETING') {
+    searchPlaceholder = 'Search social posts, accounts, creatives... (Ctrl+K)';
+    quickActionButton = {
+      label: 'Create Post',
+      href: '/social/create',
+      icon: Plus,
+    };
+  } else if (userNormDept === 'SALES') {
+    searchPlaceholder = 'Search leads, pipeline, quotations... (Ctrl+K)';
+    quickActionButton = {
+      label: 'New Lead',
+      href: '/crm/leads',
+      icon: Plus,
+    };
+  }
+
+  const QuickIcon = quickActionButton.icon;
 
   return (
     <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20 shadow-2xs">
@@ -37,7 +94,7 @@ export function Topbar() {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none transition-colors duration-200" />
           <input
             type="text"
-            placeholder="Search leads, projects, invoices, SOPs... (Ctrl+K)"
+            placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchOpen(true)}
@@ -50,7 +107,7 @@ export function Topbar() {
         {isSearchOpen && (
           <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50 animate-accordion">
             <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Quick Suggestions
+              Quick Suggestions ({userNormDept === 'DEVELOPMENT' ? 'Developer' : userNormDept === 'MARKETING' ? 'Social Media' : userNormDept === 'SALES' ? 'Sales' : 'All'})
             </div>
             {filteredItems.map((item, idx) => (
               <button
@@ -72,6 +129,20 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
+        {/* Department Badge */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-full text-[11px] font-bold text-slate-700">
+          <span className="w-2 h-2 rounded-full bg-blue-600" />
+          <span>
+            {userNormDept === 'DEVELOPMENT'
+              ? '💻 Engineering'
+              : userNormDept === 'MARKETING'
+              ? '📱 Social & Marketing'
+              : userNormDept === 'SALES'
+              ? '💼 Sales & CRM'
+              : '👑 All Access'}
+          </span>
+        </div>
+
         {/* Live Screen Time Badge */}
         <Link
           href="/analytics/screen-time"
@@ -83,19 +154,13 @@ export function Topbar() {
           <span>{formattedTodayTime}</span>
         </Link>
 
-        {/* System Status Pill */}
-        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 bg-emerald-50 border border-emerald-200/80 rounded-full text-[11px] font-semibold text-emerald-700 transition-colors duration-200">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>CodeKap Engine Active</span>
-        </div>
-
-        {/* Quick Create Dropdown / Button */}
+        {/* Dynamic Department Quick Action Button */}
         <Link
-          href="/crm/leads"
+          href={quickActionButton.href}
           className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs shadow-blue-600/20 transition-all duration-200 btn-press"
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Lead / Project</span>
+          <QuickIcon className="w-3.5 h-3.5" />
+          <span>{quickActionButton.label}</span>
         </Link>
 
         {/* Team Chat Icon */}

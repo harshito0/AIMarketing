@@ -76,7 +76,7 @@ export default function SocialOverviewPage() {
   const facebookAccount = accounts.find((a) => a.platform === 'FACEBOOK' && a.isConnected);
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
       <DashboardLayout>
         <div className="space-y-6">
           {/* Top Header with Client Selector */}

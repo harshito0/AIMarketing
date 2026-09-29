@@ -82,7 +82,7 @@ export default function SocialAccountsPage() {
   const facebookAccounts = accounts.filter((a) => a.platform === 'FACEBOOK');
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}

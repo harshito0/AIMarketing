@@ -37,6 +37,7 @@ import {
   PlusCircle,
   Globe,
   MessageSquare,
+  Database,
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,6 +46,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   highlight?: boolean;
+  departments?: string[];
 }
 
 interface NavGroup {
@@ -52,12 +54,24 @@ interface NavGroup {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   items: NavItem[];
+  departments?: string[];
+}
+
+function normalizeDept(dept?: string): 'DEVELOPMENT' | 'MARKETING' | 'SALES' | 'MANAGEMENT' | 'ALL' {
+  if (!dept) return 'DEVELOPMENT';
+  const d = dept.toLowerCase();
+  if (d === 'all') return 'ALL';
+  if (d.includes('dev') || d.includes('eng') || d.includes('tech') || d.includes('soft')) return 'DEVELOPMENT';
+  if (d.includes('market') || d.includes('social') || d.includes('content') || d.includes('creative')) return 'MARKETING';
+  if (d.includes('sale') || d.includes('crm') || d.includes('lead') || d.includes('biz') || d.includes('business')) return 'SALES';
+  if (d.includes('admin') || d.includes('manage') || d.includes('exec') || d.includes('owner') || d.includes('ceo') || d.includes('finance')) return 'MANAGEMENT';
+  return 'DEVELOPMENT';
 }
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, role, signOut } = useAuth();
+  const { profile, role, signOut, department, activeDepartment, setActiveDepartment } = useAuth();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -65,24 +79,27 @@ export function Sidebar() {
   }, []);
 
   const isAdmin = mounted ? (role === 'ADMIN' || profile?.email === 'aman@codekap.com') : true;
+  const userNormDept = normalizeDept(activeDepartment || department);
 
   const navGroups: NavGroup[] = [
     {
       id: 'management',
       label: 'Management',
       icon: LayoutDashboard,
+      departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'],
       items: [
-        { name: 'Owner Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: isAdmin ? 'Owner Dashboard' : 'My Workspace', href: '/dashboard', icon: LayoutDashboard },
         { name: 'KAIRO Team Chat', href: '/chat', icon: MessageSquare, badge: 'Real-time', highlight: true },
         { name: 'Screen Time & Activity', href: '/analytics/screen-time', icon: Clock, badge: 'Live' },
         { name: 'Notifications', href: '/notifications', icon: Bell },
-        { name: 'Audit / Activity Log', href: '/audit-log', icon: FileText },
+        { name: 'Audit / Activity Log', href: '/audit-log', icon: FileText, departments: ['MANAGEMENT'] },
       ],
     },
     {
       id: 'crm',
       label: 'Sales & CRM',
       icon: TrendingUp,
+      departments: ['SALES', 'MANAGEMENT'],
       items: [
         { name: 'Leads Directory', href: '/crm/leads', icon: TrendingUp },
         { name: 'Sales Pipeline (Kanban)', href: '/crm/pipeline', icon: Layers },
@@ -93,6 +110,7 @@ export function Sidebar() {
       id: 'team',
       label: 'Organization & Team',
       icon: Users,
+      departments: ['MANAGEMENT'],
       items: [
         { name: 'Employees & Workload', href: '/employees', icon: Users },
         { name: 'Departments', href: '/departments', icon: Briefcase },
@@ -103,9 +121,10 @@ export function Sidebar() {
       id: 'projects',
       label: 'Clients & Projects',
       icon: Briefcase,
+      departments: ['DEVELOPMENT', 'SALES', 'MANAGEMENT'],
       items: [
-        { name: 'Client Business Hub', href: '/clients', icon: Building2 },
-        { name: 'Projects & Milestones', href: '/projects', icon: Briefcase },
+        { name: 'Client Business Hub', href: '/clients', icon: Building2, departments: ['SALES', 'MANAGEMENT'] },
+        { name: 'Projects & Milestones', href: '/projects', icon: Briefcase, departments: ['DEVELOPMENT', 'MANAGEMENT'] },
         { name: 'My Tasks', href: '/tasks', icon: CheckSquare },
         { name: 'Daily Work Logs', href: '/work-logs', icon: FileCheck2 },
         { name: 'Company Calendar', href: '/calendar', icon: Calendar },
@@ -115,6 +134,7 @@ export function Sidebar() {
       id: 'social',
       label: 'KAIRO Social',
       icon: Share2,
+      departments: ['MARKETING', 'MANAGEMENT'],
       items: [
         { name: 'Overview', href: '/social', icon: LayoutDashboard },
         { name: 'Social Accounts', href: '/social/accounts', icon: Globe },
@@ -131,34 +151,57 @@ export function Sidebar() {
       id: 'workspaces',
       label: 'SOPs & Workspaces',
       icon: Sparkles,
+      departments: ['DEVELOPMENT', 'MARKETING', 'MANAGEMENT'],
       items: [
         { name: 'SOP Library & Builder', href: '/sop', icon: BookOpen },
-        { name: 'Development Workspace', href: '/workspaces/dev', icon: Code2 },
-        { name: 'Marketing Workspace', href: '/workspaces/marketing', icon: Megaphone },
-        { name: 'Creative AI Studio', href: '/creative-studio', icon: Sparkles },
+        { name: 'Development Workspace', href: '/workspaces/dev', icon: Code2, departments: ['DEVELOPMENT', 'MANAGEMENT'] },
+        { name: 'Marketing Workspace', href: '/workspaces/marketing', icon: Megaphone, departments: ['MARKETING', 'MANAGEMENT'] },
+        { name: 'Creative AI Studio', href: '/creative-studio', icon: Sparkles, departments: ['MARKETING', 'MANAGEMENT'] },
       ],
     },
     {
       id: 'finance',
       label: 'Finance & GST Billing',
       icon: Receipt,
+      departments: ['SALES', 'MANAGEMENT'],
       items: [
-        { name: 'Finance Overview', href: '/finance', icon: DollarSign },
-        { name: 'Quotations', href: '/finance/quotations', icon: Receipt },
-        { name: 'Invoices & Payments', href: '/finance/invoices', icon: Receipt },
-        { name: 'Company Expenses', href: '/finance/expenses', icon: Wallet },
-        { name: 'GST & Business Reports', href: '/finance/reports', icon: PieChart },
+        { name: 'Finance Overview', href: '/finance', icon: DollarSign, departments: ['MANAGEMENT'] },
+        { name: 'Quotations', href: '/finance/quotations', icon: Receipt, departments: ['SALES', 'MANAGEMENT'] },
+        { name: 'Invoices & Payments', href: '/finance/invoices', icon: Receipt, departments: ['SALES', 'MANAGEMENT'] },
+        { name: 'Company Expenses', href: '/finance/expenses', icon: Wallet, departments: ['MANAGEMENT'] },
+        { name: 'GST & Business Reports', href: '/finance/reports', icon: PieChart, departments: ['MANAGEMENT'] },
       ],
     },
     {
       id: 'system',
       label: 'System & Config',
       icon: Settings,
+      departments: ['MANAGEMENT'],
       items: [
+        { name: 'Live Database Hub', href: '/database', icon: Database, badge: 'SQLite' },
         { name: 'Platform Settings', href: '/settings', icon: Settings },
       ],
     },
   ];
+
+  // Filter groups and sub-items based on active department
+  const filteredNavGroups = React.useMemo(() => {
+    return navGroups
+      .filter((group) => {
+        if (userNormDept === 'ALL' && isAdmin) return true;
+        if (!group.departments || group.departments.includes('ALL')) return true;
+        return group.departments.includes(userNormDept);
+      })
+      .map((group) => {
+        const filteredItems = group.items.filter((item) => {
+          if (userNormDept === 'ALL' && isAdmin) return true;
+          if (!item.departments || item.departments.includes('ALL')) return true;
+          return item.departments.includes(userNormDept);
+        });
+        return { ...group, items: filteredItems };
+      })
+      .filter((group) => group.items.length > 0);
+  }, [userNormDept, isAdmin, navGroups]);
 
   // Open/collapsed states with smooth transitions
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({
@@ -166,8 +209,8 @@ export function Sidebar() {
     social: true,
     crm: false,
     team: false,
-    projects: false,
-    workspaces: false,
+    projects: true,
+    workspaces: true,
     finance: false,
     system: false,
   });
@@ -175,7 +218,7 @@ export function Sidebar() {
   // Auto-expand active group with smooth recognition
   React.useEffect(() => {
     if (!pathname) return;
-    for (const group of navGroups) {
+    for (const group of filteredNavGroups) {
       const hasActiveChild = group.items.some(
         (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
       );
@@ -183,7 +226,7 @@ export function Sidebar() {
         setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
       }
     }
-  }, [pathname]);
+  }, [pathname, filteredNavGroups]);
 
   const toggleGroup = (groupId: string) => {
     setOpenGroups((prev) => ({
@@ -219,9 +262,56 @@ export function Sidebar() {
         </Link>
       </div>
 
+      {/* Role / Department Perspective Selector */}
+      <div className="px-3 pt-3 pb-1 border-b border-slate-100/80 bg-slate-50/50">
+        <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              Active Department
+            </span>
+            {isAdmin ? (
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-100 text-purple-700">
+                Super Admin
+              </span>
+            ) : (
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-700">
+                Assigned
+              </span>
+            )}
+          </div>
+
+          {isAdmin ? (
+            <select
+              value={activeDepartment}
+              onChange={(e) => setActiveDepartment(e.target.value)}
+              className="w-full text-xs font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer transition-colors"
+              title="Switch role view to preview exact employee department experience"
+            >
+              <option value="ALL">👑 All Modules (Super Admin)</option>
+              <option value="Development">💻 Developer View (Engineering)</option>
+              <option value="Digital Marketing">📱 Social Media View (Marketing)</option>
+              <option value="Sales & Business Development">💼 Sales & CRM View</option>
+            </select>
+          ) : (
+            <div className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="truncate">
+                {userNormDept === 'DEVELOPMENT'
+                  ? '💻 Development Team'
+                  : userNormDept === 'MARKETING'
+                  ? '📱 Social Media & Marketing'
+                  : userNormDept === 'SALES'
+                  ? '💼 Sales & CRM'
+                  : department || 'General Team'}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Navigation Scrollable */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 text-slate-700 custom-scrollbar">
-        {navGroups.map((group) => {
+        {filteredNavGroups.map((group) => {
           const GroupIcon = group.icon;
           const isOpen = !!openGroups[group.id];
           const hasActiveChild = group.items.some(
@@ -336,7 +426,11 @@ export function Sidebar() {
                     {profile.role === 'ADMIN' ? 'Owner' : profile.role}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 truncate">@{profile.username || 'aman'}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[9px] font-semibold text-slate-500 truncate max-w-[110px]">
+                    {profile.department || 'Development'}
+                  </span>
+                </div>
               </div>
             </Link>
           </div>

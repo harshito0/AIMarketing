@@ -58,7 +58,7 @@ export default function SocialDraftsPage() {
   };
 
   return (
-    <AuthGuard>
+    <AuthGuard allowedDepartments={['Digital Marketing', 'Social Media', 'Marketing']}>
       <DashboardLayout>
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

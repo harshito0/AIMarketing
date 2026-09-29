@@ -681,7 +681,7 @@ export default function TasksPage() {
                     <input
                       type="email"
                       required
-                      placeholder="e.g. sharshit.0211@gmail.com"
+                      placeholder="e.g. member@company.com"
                       value={newTask.assignedToEmail}
                       onChange={(e) => setNewTask({ ...newTask, assignedToEmail: e.target.value })}
                       className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 text-slate-900 bg-white"

@@ -15,6 +15,7 @@ export interface UserProfile {
   lastLoginAt?: string;
   avatar?: string;
   title?: string;
+  department?: string;
 }
 
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
@@ -25,6 +26,7 @@ export interface Invitation {
   name?: string | null;
   role: UserRole;
   passcode?: string;
+  department?: string;
   invitedBy: string;
   invitedByName?: string;
   tokenHash?: string;
@@ -46,6 +48,7 @@ export interface User {
   emailVerified?: boolean;
   avatar: string;
   title: string;
+  department?: string;
 }
 
 export interface Client {
@@ -678,5 +681,145 @@ export interface ConversationItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface InvoiceLineItem {
+  id?: string;
+  srNo?: number;
+  desc: string;
+  deliverables?: string[];
+  hsn: string;
+  qty: number;
+  unit?: string;
+  rate: number;
+  rateType?: 'EXCLUSIVE_GST' | 'INCLUSIVE_GST';
+  discountPercent?: number;
+  discountAmount?: number;
+  taxableAmount?: number;
+  gstRate: number;
+  gstAmount?: number;
+  totalAmount: number;
+}
+
+export interface InvoiceBankDetails {
+  accountHolderName: string;
+  bankName: string;
+  accountNo: string;
+  ifscCode: string;
+  branch?: string;
+  outstandingAmount?: number;
+}
+
+export interface InvoicePaymentEntry {
+  isReceived: boolean;
+  paymentMode: string;
+  refNo: string;
+  depositTo: string;
+  amount: number;
+  receivedDate?: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  invoiceNumber: string;
+  seriesName?: string | null;
+  invoicePrefix?: string | null;
+  invoiceSuffix?: string | null;
+  bookName?: string | null;
+  date: string;
+  dueDate: string;
+  clientId: string;
+  clientName: string;
+  clientGstin?: string | null;
+  billingAddress?: string | null;
+  shippingAddress?: string | null;
+  quotationNo?: string | null;
+  placeOfSupply?: string | null;
+  itemsJson: string;
+  subtotal: number;
+  discountType?: 'PERCENTAGE' | 'FIXED' | null;
+  discountValue?: number | null;
+  discountAmount?: number | null;
+  taxableAmount?: number | null;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  serviceCharge?: number | null;
+  otherCharges?: number | null;
+  roundOff?: number | null;
+  totalAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  currency: string;
+  status: string;
+  paymentMethod?: string | null;
+  bankDetailsJson?: string | null;
+  paymentDetailsJson?: string | null;
+  customFieldsJson?: string | null;
+  attachmentUrl?: string | null;
+  notes?: string | null;
+  terms?: string | null;
+  razorpayPaymentLinkId?: string | null;
+  razorpayPaymentId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuotationLineItem {
+  id?: string;
+  srNo?: number;
+  desc: string;
+  deliverables?: string[];
+  hsn: string;
+  mrp?: number;
+  qty: number;
+  unit?: string;
+  rate: number;
+  rateType?: 'EXCLUSIVE_GST' | 'INCLUSIVE_GST';
+  discountPercent?: number;
+  discountAmount?: number;
+  taxableAmount?: number;
+  gstRate: number;
+  gstAmount?: number;
+  cessRate?: number;
+  cessAmount?: number;
+  totalAmount: number;
+}
+
+export interface QuotationItem {
+  id: string;
+  quotationNumber: string;
+  prefix?: string | null;
+  suffix?: string | null;
+  date: string;
+  validUntil?: string | null;
+  clientId?: string | null;
+  clientName: string;
+  clientPhone?: string | null;
+  clientEmail?: string | null;
+  clientGstin?: string | null;
+  billingAddress?: string | null;
+  itemsJson: string;
+  subtotal: number;
+  taxableAmount?: number | null;
+  cgst?: number | null;
+  sgst?: number | null;
+  igst?: number | null;
+  taxAmount: number;
+  discountBeforeTax?: number | null;
+  discountAfterTax?: number | null;
+  serviceCharge?: number | null;
+  otherCharges?: number | null;
+  roundOff?: number | null;
+  autoRoundOff?: boolean | null;
+  totalAmount: number;
+  currency: string;
+  status: string;
+  notes?: string | null;
+  bankDetails?: string | null;
+  terms?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 

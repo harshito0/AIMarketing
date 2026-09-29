@@ -53,7 +53,7 @@ export const DEFAULT_CLIENTS: Client[] = [
 ];
 
 export default function ClientsPage() {
-  const { profile, role } = useAuth();
+  const { profile, role, department, activeDepartment } = useAuth();
   const [clients, setClients] = useState<Client[]>(DEFAULT_CLIENTS);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -64,6 +64,8 @@ export default function ClientsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isSuperOrManager = role === 'ADMIN' || role === 'MANAGER' || profile?.email === 'aman@codekap.com';
+  const effectiveDept = activeDepartment || department || profile?.department || '';
+  const isMarketingOnly = (effectiveDept.toLowerCase().includes('market') || effectiveDept.toLowerCase().includes('social')) && role !== 'ADMIN';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -428,7 +430,7 @@ export default function ClientsPage() {
                         )}
                       </div>
 
-                      {client.githubRepo && (
+                      {!isMarketingOnly && client.githubRepo && (
                         <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-200/60">
                           <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                             <Code2 className="w-3.5 h-3.5 text-slate-400" />

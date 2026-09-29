@@ -26,6 +26,9 @@ interface AuthContextType {
   profile: UserProfile | null;
   role: UserRole | null;
   status: UserStatus | null;
+  department: string;
+  activeDepartment: string;
+  setActiveDepartment: (dept: string) => void;
   loading: boolean;
   isAuthenticated: boolean;
   isEmailVerified: boolean;
@@ -54,12 +57,21 @@ const DEFAULT_DEV_ADMIN: UserProfile = {
   lastLoginAt: new Date().toISOString(),
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   title: 'Founder & CEO',
+  department: 'Administration & Management',
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeDepartmentState, setActiveDepartmentState] = useState<string>('ALL');
+
+  const setActiveDepartment = (dept: string) => {
+    setActiveDepartmentState(dept);
+    try {
+      localStorage.setItem('codekap_active_dept_view', dept);
+    } catch {}
+  };
 
   const fetchProfile = async (fbUser: FirebaseUser) => {
     try {
@@ -79,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatedAt: new Date().toISOString(),
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
         title: isInitialAdmin ? 'Administrator' : 'Team Member',
+        department: isInitialAdmin ? 'Administration & Management' : 'Development',
       };
 
       setProfile(fastProfile);
@@ -114,6 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(JSON.parse(cached));
       } else {
         setProfile(null);
+      }
+      const savedDeptView = localStorage.getItem('codekap_active_dept_view');
+      if (savedDeptView) {
+        setActiveDepartmentState(savedDeptView);
       }
     } catch {
       setProfile(null);
@@ -237,15 +254,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fallback for dev / demo mode accounts: Fetch persistent DB profile
       const initialAdminEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
       const isInitialAdmin = lowerInput === initialAdminEmail || lowerInput.includes('aman');
-      const targetUid = isInitialAdmin ? 'usr_aman' : lowerInput.includes('harshit') ? 'usr_harshit' : `usr_${Date.now().toString(36)}`;
+      const isHarshit = lowerInput.includes('harshit');
+      const isPooja = lowerInput.includes('pooja');
+      const isSales = lowerInput.includes('sales') || lowerInput.includes('rahul');
+
+      const targetUid = isInitialAdmin ? 'usr_aman' : isHarshit ? 'usr_harshit' : isPooja ? 'usr_pooja' : `usr_${Date.now().toString(36)}`;
 
       let devProf: UserProfile = {
         ...DEFAULT_DEV_ADMIN,
         uid: targetUid,
-        name: lowerInput.includes('harshit') ? 'Harshit Singh' : (lowerInput.split('@')[0] || 'Aman Sir'),
+        name: isInitialAdmin ? 'Aman Sir' : isHarshit ? 'Harshit Singh' : isPooja ? 'Pooja Sharma' : isSales ? 'Sales Specialist' : (lowerInput.split('@')[0] || 'Team Member'),
         email: emailToUse.includes('@') ? emailToUse : `${lowerInput}@codekap.com`,
         username: lowerInput.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'user',
         role: isInitialAdmin ? 'ADMIN' : 'TEAM_MEMBER',
+        department: isInitialAdmin ? 'Administration & Management' : isHarshit ? 'Development' : isPooja ? 'Digital Marketing' : isSales ? 'Sales & Business Development' : 'Development',
+        title: isInitialAdmin ? 'Founder & CEO' : isHarshit ? 'Lead Architect / Senior Engineer' : isPooja ? 'Social Media & Performance Strategist' : isSales ? 'Sales Executive' : 'Team Member',
+        avatar: isHarshit
+          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit'
+          : isPooja
+          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=pooja'
+          : undefined,
         emailVerified: true,
       };
 
@@ -465,6 +493,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastLoginAt: new Date().toISOString(),
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       title: 'Super Admin / Founder & CEO',
+      department: 'Administration & Management',
     };
 
     // Check cached session for custom name or custom uploaded avatar
@@ -528,6 +557,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isEmailVerified = !!(user?.emailVerified || profile?.emailVerified);
 
+  const userDept = profile?.department || (profile?.role === 'ADMIN' ? 'Administration & Management' : 'Development');
+  const effectiveActiveDepartment = (profile?.role === 'ADMIN' || profile?.email === 'aman@codekap.com')
+    ? activeDepartmentState
+    : userDept;
+
   return (
     <AuthContext.Provider
       value={{
@@ -535,6 +569,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         role: profile?.role || 'ADMIN',
         status: profile?.status || 'ACTIVE',
+        department: userDept,
+        activeDepartment: effectiveActiveDepartment,
+        setActiveDepartment,
         loading,
         isAuthenticated: !!profile,
         isEmailVerified,

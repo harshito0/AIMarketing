@@ -229,7 +229,7 @@ export default function EmployeesPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Harshit Singh"
+                    placeholder="e.g. Jane Doe"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-hidden focus:border-blue-500"

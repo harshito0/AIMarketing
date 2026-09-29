@@ -216,7 +216,8 @@ function SignUpForm() {
             <input
               type="text"
               required
-              placeholder="e.g. AGENT-6547"
+              autoComplete="off"
+              placeholder="e.g. AGENT-XXXX"
               value={passcode}
               onChange={(e) => {
                 const val = e.target.value.toUpperCase();
@@ -254,7 +255,8 @@ function SignUpForm() {
             <input
               type="text"
               required
-              placeholder="e.g. Harshit Singh"
+              autoComplete="name"
+              placeholder="Enter your full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 focus:bg-white transition-all shadow-2xs"
@@ -275,7 +277,8 @@ function SignUpForm() {
           <input
             type="text"
             required
-            placeholder="e.g. harshitsingh"
+            autoComplete="off"
+            placeholder="Choose a username"
             value={username}
             onChange={(e) => {
               const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -307,7 +310,8 @@ function SignUpForm() {
             <input
               type="email"
               required
-              placeholder="e.g. sharshit.0211@gmail.com"
+              autoComplete="email"
+              placeholder="e.g. name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 focus:bg-white transition-all shadow-2xs"
@@ -322,6 +326,7 @@ function SignUpForm() {
             <input
               type="password"
               required
+              autoComplete="new-password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -333,6 +338,7 @@ function SignUpForm() {
             <input
               type="password"
               required
+              autoComplete="new-password"
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

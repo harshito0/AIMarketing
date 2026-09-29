@@ -107,3 +107,34 @@
   }
 }
 
+/* Print Stylesheet for Tax Invoice & PDF Generation */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 6mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ensure background colors and borders print faithfully */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent page breaks inside tables and summary blocks */
+  table, tr, td, th {
+    page-break-inside: avoid;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
+

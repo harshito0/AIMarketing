@@ -3,9 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { InvoiceItem, InvoiceLineItem, InvoiceBankDetails, InvoicePaymentEntry } from '@/lib/types';
+import {
+  InvoiceItem,
+  InvoiceLineItem,
+  InvoiceBankDetails,
+  SundryDebtorCustomer,
+} from '@/lib/types';
 import { formatINR, formatINRPlain } from '@/lib/invoice-utils';
 import { TaxInvoiceView } from './tax-invoice-view';
+import { NewCustomerDrawer } from './new-customer-drawer';
+import { CustomFieldsModal, CustomFieldItem } from './custom-fields-modal';
+import { ItemTuneModal } from './item-tune-modal';
 import {
   ArrowLeft,
   Plus,
@@ -18,16 +26,18 @@ import {
   Info,
   Calendar,
   Building2,
-  DollarSign,
   ChevronDown,
   ChevronRight,
-  MoreVertical,
+  ChevronLeft,
   HelpCircle,
   FileText,
-  Share2,
   Sliders,
   Check,
   X,
+  Edit2,
+  MoreVertical,
+  Download,
+  Copy,
 } from 'lucide-react';
 
 interface SalesInvoiceEditorProps {
@@ -36,28 +46,68 @@ interface SalesInvoiceEditorProps {
   onCancel?: () => void;
 }
 
-const PRESET_CUSTOMERS = [
+interface PaymentRow {
+  id: string;
+  mode: string;
+  refNo: string;
+  depositTo: string;
+  amount: number;
+}
+
+const PRESET_CUSTOMERS: SundryDebtorCustomer[] = [
   {
-    name: 'M.S.I. GROUP OF INSTITUTE',
-    balance: '₹0.00 Cr',
+    accountDisplayName: 'M.S.I. GROUP OF INSTITUTE',
+    legalName: 'M.S.I. GROUP OF INSTITUTE',
+    registrationType: 'Registered Regular',
+    partyType: 'Not Applicable',
     gstin: '03AEQPE9376K2ZY',
-    address:
-      'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307',
-    placeOfSupply: 'PUNJAB (03)',
+    addressLine1: 'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE',
+    addressLine2: 'Mohali, S.A.S Nagar',
+    city: 'Mohali',
+    state: 'PUNJAB',
+    pincode: '140307',
+    country: 'India',
+    mobileNo: '9175288353',
+    email: 'admissions@msigroup.edu.in',
+    openingBalance: 0,
+    balanceType: 'Cr',
+    balanceFormatted: '₹0.00 Cr',
   },
   {
-    name: 'Glassfinity USA',
-    balance: '₹0.00 Cr',
+    accountDisplayName: 'Glassfinity USA',
+    legalName: 'Glassfinity USA Inc.',
+    registrationType: 'Overseas / Export',
+    partyType: 'Not Applicable',
     gstin: '',
-    address: 'Glass finity usa, VIRGINIA, United States',
-    placeOfSupply: 'Export / Overseas',
+    addressLine1: 'Glass finity usa',
+    addressLine2: 'VIRGINIA',
+    city: 'Richmond',
+    state: 'Export / Overseas',
+    pincode: '23219',
+    country: 'United States',
+    mobileNo: '18005550199',
+    email: 'contact@glassfinity.com',
+    openingBalance: 0,
+    balanceType: 'Cr',
+    balanceFormatted: '₹0.00 Cr',
   },
   {
-    name: 'Jeevansphere Technologies',
-    balance: '₹0.00 Cr',
+    accountDisplayName: 'Jeevansphere Technologies',
+    legalName: 'Jeevansphere Technologies Pvt Ltd',
+    registrationType: 'Registered Regular',
+    partyType: 'Private Limited',
     gstin: '07AABCU9603R1ZX',
-    address: 'Connaught Place, New Delhi, India 110001',
-    placeOfSupply: 'DELHI (07)',
+    addressLine1: 'Connaught Place',
+    addressLine2: 'Barakhamba Road',
+    city: 'New Delhi',
+    state: 'DELHI',
+    pincode: '110001',
+    country: 'India',
+    mobileNo: '9811002233',
+    email: 'info@jeevansphere.com',
+    openingBalance: 0,
+    balanceType: 'Cr',
+    balanceFormatted: '₹0.00 Cr',
   },
 ];
 
@@ -79,6 +129,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const [customerName, setCustomerName] = useState(
     initialInvoice?.clientName || 'M.S.I. GROUP OF INSTITUTE'
   );
+  const [customerBalance, setCustomerBalance] = useState('₹0.00 Cr');
   const [seriesName, setSeriesName] = useState(initialInvoice?.seriesName || 'Sales Invoice');
   const [invoicePrefix, setInvoicePrefix] = useState(initialInvoice?.invoicePrefix || 'INV');
   const [invoiceNumPart, setInvoiceNumPart] = useState(
@@ -102,7 +153,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     initialInvoice?.shippingAddress ||
       'M.S.I. GROUP OF INSTITUTE (GSTIN: 03AEQPE9376K2ZY)\nSCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307'
   );
-  const [placeOfSupplyChecked, setPlaceOfSupplyChecked] = useState(true);
+  const [placeOfSupplyChecked, setPlaceOfSupplyChecked] = useState(false);
   const [placeOfSupply, setPlaceOfSupply] = useState(
     initialInvoice?.placeOfSupply || 'PUNJAB (03)'
   );
@@ -110,8 +161,14 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   // Custom Fields
   const [quotationNo, setQuotationNo] = useState(initialInvoice?.quotationNo || '');
   const [transporterDetails, setTransporterDetails] = useState(false);
+  const [transporterInfo, setTransporterInfo] = useState({
+    transporterName: '',
+    transporterId: '',
+    docNo: '',
+    vehicleNo: '',
+  });
 
-  // Items List
+  // Items List (Initialized exactly to match Sample Screenshot 1 & 2)
   const defaultItems: InvoiceLineItem[] = [
     {
       srNo: 1,
@@ -135,7 +192,6 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
       qty: 1,
       unit: 'MTH',
       rate: 4200,
-      unit: 'MTH',
       rateType: 'EXCLUSIVE_GST',
       discountPercent: 0,
       discountAmount: 0,
@@ -203,8 +259,8 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
 
   // Rates & Taxes Mode
   const [globalRateType, setGlobalRateType] = useState<'EXCLUSIVE_GST' | 'INCLUSIVE_GST'>('EXCLUSIVE_GST');
-  const [isInterState, setIsInterState] = useState(
-    initialInvoice ? initialInvoice.igst > 0 : true
+  const [isInterState, setIsInterState] = useState<boolean>(
+    initialInvoice ? (initialInvoice.igst || 0) > 0 : true
   );
 
   // Discount & Charges
@@ -214,6 +270,9 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const [showServiceCharge, setShowServiceCharge] = useState(false);
   const [otherCharges, setOtherCharges] = useState<number>(initialInvoice?.otherCharges || 0);
   const [showOtherCharges, setShowOtherCharges] = useState(false);
+  const [discountAfterTaxType, setDiscountAfterTaxType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
+  const [discountAfterTaxValue, setDiscountAfterTaxValue] = useState<number>(0);
+  const [autoRoundOff, setAutoRoundOff] = useState(true);
 
   // Special Notes & Attachments
   const [specialNotes, setSpecialNotes] = useState(initialInvoice?.notes || '');
@@ -221,29 +280,96 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const [bankAccount, setBankAccount] = useState('CODEKAP');
 
   // Payment Received
-  const [isPaymentReceived, setIsPaymentReceived] = useState(
-    initialInvoice?.status === 'RECEIVED' || initialInvoice?.status === 'PAID' || true
+  const [isPaymentReceived, setIsPaymentReceived] = useState<boolean>(
+    initialInvoice ? (initialInvoice.status === 'RECEIVED' || initialInvoice.status === 'PAID') : true
   );
-  const [paymentMode, setPaymentMode] = useState('IMPS');
-  const [paymentRefNo, setPaymentRefNo] = useState('AD/0102');
-  const [depositTo, setDepositTo] = useState('CODEKAP');
-  const [paymentAmount, setPaymentAmount] = useState<number>(15000);
+  const [payments, setPayments] = useState<PaymentRow[]>([
+    {
+      id: 'pay_1',
+      mode: 'IMPS',
+      refNo: 'AD/0102',
+      depositTo: 'CODEKAP',
+      amount: 15000.0,
+    },
+  ]);
 
-  // Preview & Printing Modal
+  // Modals & Drawers state
+  const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
+  const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>(PRESET_CUSTOMERS);
+  const [showCustomFieldsModal, setShowCustomFieldsModal] = useState(false);
+  const [customFieldsList, setCustomFieldsList] = useState<CustomFieldItem[]>([]);
+  const [showItemTuneModal, setShowItemTuneModal] = useState(false);
+  const [tuneItemIndex, setTuneItemIndex] = useState<number>(0);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Keyboard shortcut listeners (ALT+S, ALT+P, CTRL+SHIFT+L, ALT+D, ALT+A, ALT+R)
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      // Don't trigger if drawers or modals are active
+      if (showCustomerDrawer || showCustomFieldsModal || showItemTuneModal) return;
+
+      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        handleSaveInvoice(false);
+      } else if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        setShowPreviewModal(true);
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        setShowPreviewModal(true);
+      } else if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (onCancel) onCancel();
+        else router.push('/finance/invoices');
+      } else if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        addRow();
+      } else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        if (items.length > 1) removeRow(items.length - 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [items, showCustomerDrawer, showCustomFieldsModal, showItemTuneModal]);
+
   // Auto-fill customer details when changing customer
   const handleCustomerChange = (cName: string) => {
-    setCustomerName(cName);
-    const found = PRESET_CUSTOMERS.find((c) => c.name === cName);
-    if (found) {
-      const gstinLine = found.gstin ? `\nGSTIN: ${found.gstin}` : '';
-      setBillingAddress(`${found.address}${gstinLine}`);
-      setShippingAddress(`${found.name} ${found.gstin ? `(GSTIN: ${found.gstin})` : ''}\n${found.address}`);
-      setPlaceOfSupply(found.placeOfSupply);
+    if (cName === '__ADD_NEW__') {
+      setShowCustomerDrawer(true);
+      return;
     }
+
+    setCustomerName(cName);
+    const found = customerList.find((c) => c.accountDisplayName === cName || c.legalName === cName);
+    if (found) {
+      setCustomerBalance(found.balanceFormatted || '₹0.00 Cr');
+      const gstinLine = found.gstin ? `\nGSTIN: ${found.gstin}` : (found.panItTanNo ? `\nPAN: ${found.panItTanNo}` : '');
+      const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode]
+        .filter(Boolean)
+        .join(', ');
+      setBillingAddress(`${addr}${gstinLine}`);
+      setShippingAddress(`${found.accountDisplayName} ${found.gstin ? `(GSTIN: ${found.gstin})` : ''}\n${addr}`);
+      setPlaceOfSupply(found.state || 'PUNJAB (03)');
+    }
+  };
+
+  // When a new customer is saved from drawer
+  const handleCustomerSaved = (newCust: SundryDebtorCustomer) => {
+    setCustomerList((prev) => [newCust, ...prev]);
+    setCustomerName(newCust.accountDisplayName);
+    setCustomerBalance(newCust.balanceFormatted || '₹0.00 Cr');
+    const gstinLine = newCust.gstin ? `\nGSTIN: ${newCust.gstin}` : (newCust.panItTanNo ? `\nPAN: ${newCust.panItTanNo}` : '');
+    const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode]
+      .filter(Boolean)
+      .join(', ');
+    setBillingAddress(`${addr}${gstinLine}`);
+    setShippingAddress(`${newCust.accountDisplayName} ${newCust.gstin ? `(GSTIN: ${newCust.gstin})` : ''}\n${addr}`);
+    if (newCust.state) setPlaceOfSupply(newCust.state);
   };
 
   // Row update helpers
@@ -256,7 +382,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
       const gstRate = Number(cur.gstRate) || 0;
 
       let taxable = qty * rate;
-      if (cur.rateType === 'INCLUSIVE_GST' && gstRate > 0) {
+      if (globalRateType === 'INCLUSIVE_GST' && gstRate > 0) {
         taxable = Number(((qty * rate) / (1 + gstRate / 100)).toFixed(2));
       }
       const discAmt = cur.discountPercent ? Number(((taxable * cur.discountPercent) / 100).toFixed(2)) : (cur.discountAmount || 0);
@@ -280,7 +406,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
       ...prev,
       {
         srNo: prev.length + 1,
-        desc: 'New Service Item',
+        desc: 'New Service / Deliverable',
         hsn: '998314',
         qty: 1,
         unit: 'MTH',
@@ -301,9 +427,33 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     setItems((prev) => prev.filter((_, i) => i !== idx).map((it, i) => ({ ...it, srNo: i + 1 })));
   };
 
+  // Add more payment row
+  const addPaymentRow = () => {
+    const unallocated = Math.max(0, grandTotal - totalAmountReceived);
+    setPayments((prev) => [
+      ...prev,
+      {
+        id: `pay_${Date.now()}`,
+        mode: 'UPI',
+        refNo: '',
+        depositTo: 'CODEKAP',
+        amount: unallocated > 0 ? unallocated : 0,
+      },
+    ]);
+  };
+
+  const removePaymentRow = (id: string) => {
+    if (payments.length <= 1) return;
+    setPayments((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const updatePaymentRow = (id: string, updates: Partial<PaymentRow>) => {
+    setPayments((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+  };
+
   // Calculations
   const subtotalSum = items.reduce((acc, it) => acc + (it.taxableAmount || (it.qty * it.rate)), 0);
-  const totalItemsCount = items.length;
+  const totalQtySum = items.reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
 
   const discountAmountCalc =
     discountType === 'PERCENTAGE'
@@ -318,17 +468,32 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const sgstAmt = !isInterState ? Number((totalTaxAmt / 2).toFixed(2)) : 0;
 
   const calculatedSubTotal = totalTaxableAmt + totalTaxAmt;
-  const grandTotal = Number(
-    (
-      calculatedSubTotal +
-      (showServiceCharge ? Number(serviceCharge) || 0 : 0) +
-      (showOtherCharges ? Number(otherCharges) || 0 : 0)
-    ).toFixed(2)
-  );
 
-  // Sync payment amount with grand total when paid in full
-  const handlePayFull = () => {
-    setPaymentAmount(grandTotal);
+  const discountAfterTaxCalc =
+    discountAfterTaxType === 'PERCENTAGE'
+      ? Number(((calculatedSubTotal * (Number(discountAfterTaxValue) || 0)) / 100).toFixed(2))
+      : Number(discountAfterTaxValue) || 0;
+
+  const unroundedTotal =
+    calculatedSubTotal +
+    (showServiceCharge ? Number(serviceCharge) || 0 : 0) +
+    (showOtherCharges ? Number(otherCharges) || 0 : 0) -
+    discountAfterTaxCalc;
+
+  const grandTotal = autoRoundOff ? Math.round(unroundedTotal) : Number(unroundedTotal.toFixed(2));
+  const roundOffDifference = Number((grandTotal - unroundedTotal).toFixed(2));
+
+  // Payment totals
+  const totalAmountReceived = isPaymentReceived
+    ? payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
+    : 0;
+  const balanceDue = Math.max(0, Number((grandTotal - totalAmountReceived).toFixed(2)));
+
+  // Sync first payment amount with grand total when paid in full
+  const handlePayFull = (pId: string) => {
+    setPayments((prev) =>
+      prev.map((p) => (p.id === pId ? { ...p, amount: grandTotal } : p))
+    );
   };
 
   // Build the complete InvoiceItem representation for saving and previewing
@@ -345,7 +510,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     dueDate,
     clientId: initialInvoice?.clientId || `cli_${Date.now()}`,
     clientName: customerName,
-    clientGstin: customerName === 'M.S.I. GROUP OF INSTITUTE' ? '03AEQPE9376K2ZY' : null,
+    clientGstin: customerName.includes('M.S.I.') ? '03AEQPE9376K2ZY' : null,
     billingAddress,
     shippingAddress,
     quotationNo: quotationNo || null,
@@ -361,13 +526,13 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     igst: igstAmt,
     serviceCharge: showServiceCharge ? serviceCharge : 0,
     otherCharges: showOtherCharges ? otherCharges : 0,
-    roundOff: 0,
+    roundOff: roundOffDifference,
     totalAmount: grandTotal,
-    amountPaid: isPaymentReceived ? paymentAmount : 0,
-    balanceDue: Math.max(0, grandTotal - (isPaymentReceived ? paymentAmount : 0)),
+    amountPaid: totalAmountReceived,
+    balanceDue: balanceDue,
     currency: 'INR',
     status: isPaymentReceived ? 'RECEIVED' : 'DRAFT',
-    paymentMethod: paymentMode,
+    paymentMethod: payments[0]?.mode || 'IMPS',
     bankDetailsJson: JSON.stringify({
       accountHolderName: 'CODEKAPS DIGITAL INNOVATIONS PVT LTD',
       bankName: 'HDFC Bank Ltd',
@@ -379,10 +544,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     paymentDetailsJson: isPaymentReceived
       ? JSON.stringify({
           isReceived: true,
-          paymentMode,
-          refNo: paymentRefNo,
-          depositTo,
-          amount: paymentAmount,
+          payments,
           receivedDate: invoiceDate,
         })
       : null,
@@ -439,58 +601,128 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
   };
 
   return (
-    <div className="bg-[#F8FAFC] min-h-screen text-slate-800 pb-20">
-      {/* Top Header Bar */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-3 shadow-2xs">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div className="bg-[#F8FAFC] min-h-screen text-slate-800 pb-20 font-sans">
+      {/* Top Header Bar matching Screenshot 1 */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-2.5 shadow-2xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* Left Title & Status */}
           <div className="flex items-center gap-3">
             <Link
               href="/finance/invoices"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
-              title="Back to Invoices"
+              className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors shadow-2xs"
+              title="Back"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" />
             </Link>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-base font-black text-slate-900 tracking-tight">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-slate-800">
                 {initialInvoice ? 'Edit Sales Invoice' : 'Create Sales Invoice'}
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]">
                 {isPaymentReceived ? 'Received' : 'Draft'}
               </span>
-              <span className="text-xs font-mono font-bold text-slate-500">
+              <span className="text-xs font-semibold text-slate-500">
                 ({invoiceNumberFull})
               </span>
             </div>
           </div>
 
+          {/* Right Action Buttons matching Screenshot 1 */}
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowPreviewModal(true)}
-              className="px-3 py-1.5 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer btn-press"
+              onClick={() => setShowCustomFieldsModal(true)}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-600" />
-              <span>Tax Invoice PDF Preview</span>
+              <Sliders className="w-3.5 h-3.5 text-slate-600" />
+              <span>Custom Field</span>
             </button>
 
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => handleSaveInvoice(false)}
-              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer btn-press disabled:opacity-50"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>{isSubmitting ? 'Saving...' : 'Save Invoice'}</span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowMoreActions(!showMoreActions)}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-semibold text-xs flex items-center gap-1 shadow-2xs cursor-pointer"
+              >
+                <span>More actions</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+              </button>
+
+              {showMoreActions && (
+                <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-40 text-xs animate-fade-in">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setShowPreviewModal(true);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Print Invoice</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setShowPreviewModal(true);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Download PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setIsInterState(!isInterState);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{isInterState ? 'Switch to Intra-State (CGST+SGST)' : 'Switch to Inter-State (IGST)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setShowCustomerDrawer(true);
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2 text-blue-600 font-semibold"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Edit Customer Info</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Pagination buttons */}
+            <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white shadow-2xs">
+              <button
+                type="button"
+                className="p-1.5 hover:bg-slate-50 text-slate-500 border-r border-slate-300"
+                title="Previous"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                className="p-1.5 hover:bg-slate-50 text-slate-500"
+                title="Next"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 space-y-4">
         {/* Warning Banner (matching Screenshot 1) */}
-        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-medium flex items-center gap-2.5 shadow-2xs">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+        <div className="p-3 rounded-xl bg-[#FEF7E0] border border-[#FEEFC3] text-[#7A4B04] text-xs font-medium flex items-center gap-2 shadow-2xs">
+          <Info className="w-4 h-4 text-[#E37400] shrink-0" />
           <span>
             If receipt against this invoice was created, then it will be auto unadjusted this invoice from that receipt entry!
           </span>
@@ -498,7 +730,7 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
 
         {statusMessage && (
           <div
-            className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in ${
+            className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-fade-in ${
               statusMessage.type === 'success'
                 ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                 : 'bg-rose-50 border border-rose-200 text-rose-800'
@@ -510,82 +742,95 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
         )}
 
         {/* Customer Info Card (matching Screenshot 1) */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs space-y-5 card-lift">
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">Customer Info.</h2>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+          <h2 className="text-xs font-bold text-slate-800">Customer Info.</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Customer Dropdown */}
+            {/* Customer Dropdown with Pencil Icon */}
             <div className="md:col-span-2">
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Customer <span className="text-slate-400 font-normal">(₹0.00 Cr)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Customer <span className="text-slate-400 font-normal">({customerBalance})</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerDrawer(true)}
+                  className="text-slate-400 hover:text-blue-600 cursor-pointer"
+                  title="Edit Customer"
+                >
+                  <Edit2 className="w-3 h-3" />
+                </button>
+              </div>
               <div className="relative">
                 <select
                   value={customerName}
                   onChange={(e) => handleCustomerChange(e.target.value)}
-                  className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-2xs appearance-none"
+                  className="w-full pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none appearance-none"
                 >
-                  {PRESET_CUSTOMERS.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
+                  {customerList.map((c) => (
+                    <option key={c.accountDisplayName} value={c.accountDisplayName}>
+                      {c.accountDisplayName}
                     </option>
                   ))}
-                  <option value="Custom Customer">+ Add Custom Customer</option>
+                  <option value="__ADD_NEW__">+ Add Custom Customer...</option>
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
 
-            {/* Series Name */}
+            {/* Series Name with Pencil Icon */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Series Name</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700">Series Name</label>
+                <Edit2 className="w-3 h-3 text-slate-400" />
+              </div>
               <input
                 type="text"
                 value={seriesName}
                 onChange={(e) => setSeriesName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
               />
             </div>
 
             {/* Invoice Number */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Invoice Number <span className="text-rose-500">*</span>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Invoice Number<span className="text-rose-500">*</span>
               </label>
               <div className="flex items-center gap-1">
                 <input
                   type="text"
                   value={invoicePrefix}
                   onChange={(e) => setInvoicePrefix(e.target.value)}
-                  className="w-14 px-2 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-center text-slate-700"
+                  className="w-14 px-2 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-center text-slate-700"
                 />
                 <input
                   type="text"
                   value={invoiceNumPart}
                   onChange={(e) => setInvoiceNumPart(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
                 <input
                   type="text"
                   placeholder="Suffix"
                   value={invoiceSuffix}
                   onChange={(e) => setInvoiceSuffix(e.target.value)}
-                  className="w-16 px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-center text-slate-500 placeholder:text-slate-300"
+                  className="w-16 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-center text-slate-500 placeholder:text-slate-300"
                 />
               </div>
             </div>
 
             {/* Invoice Date */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Invoice Date <span className="text-rose-500">*</span>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Invoice Date<span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <input
                   type="date"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full pl-3 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full pl-3 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
             </div>
@@ -594,78 +839,94 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Book Name */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Book Name</label>
-              <select
-                value={bookName}
-                onChange={(e) => setBookName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-              >
-                <option value="Sales Taxable">Sales Taxable</option>
-                <option value="Export Non-GST">Export Non-GST</option>
-                <option value="SEZ Zero-Rated">SEZ Zero-Rated</option>
-              </select>
-            </div>
-
-            {/* Place of Supply */}
-            <div className="md:col-span-2 flex items-center justify-end gap-3 pt-5">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={placeOfSupplyChecked}
-                  onChange={(e) => setPlaceOfSupplyChecked(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                />
-                <span>Place Of Supply</span>
-                <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-              </label>
-              {placeOfSupplyChecked && (
-                <input
-                  type="text"
-                  value={placeOfSupply}
-                  onChange={(e) => setPlaceOfSupply(e.target.value)}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 w-48"
-                  placeholder="e.g. PUNJAB (03)"
-                />
-              )}
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Book Name</label>
+              <div className="relative">
+                <select
+                  value={bookName}
+                  onChange={(e) => setBookName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none appearance-none"
+                >
+                  <option value="Sales Taxable">Sales Taxable</option>
+                  <option value="Export Non-GST">Export Non-GST</option>
+                  <option value="SEZ Zero-Rated">SEZ Zero-Rated</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              </div>
             </div>
           </div>
 
-          {/* Addresses Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Billing Address</label>
-              <textarea
-                rows={3}
-                value={billingAddress}
-                onChange={(e) => setBillingAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none resize-none leading-relaxed"
-              />
+          {/* Addresses Grid matching Screenshot 1 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* Billing Address */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">Billing Address</label>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 leading-relaxed min-h-[90px]">
+                {billingAddress.split('\n').map((line, idx) => (
+                  <p key={idx} className={line.startsWith('GSTIN:') ? 'font-bold text-slate-800 mt-1' : ''}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="posCheckbox"
+                  checked={placeOfSupplyChecked}
+                  onChange={(e) => setPlaceOfSupplyChecked(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                />
+                <label htmlFor="posCheckbox" className="text-xs text-slate-600 cursor-pointer flex items-center gap-1">
+                  <span>Place Of Supply</span>
+                  <HelpCircle className="w-3 h-3 text-slate-400" />
+                </label>
+                {placeOfSupplyChecked && (
+                  <input
+                    type="text"
+                    value={placeOfSupply}
+                    onChange={(e) => setPlaceOfSupply(e.target.value)}
+                    className="ml-2 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-medium text-slate-800 w-36"
+                  />
+                )}
+              </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 block">Shipping Address</label>
-                <span className="text-[10px] text-blue-600 font-bold hover:underline cursor-pointer">
-                  Copy Billing Address
-                </span>
+            {/* Shipping Address */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700">Shipping Address</label>
+                <div className="flex items-center gap-2">
+                  <span
+                    onClick={() => setShippingAddress(billingAddress)}
+                    className="text-[10px] text-blue-600 font-semibold hover:underline cursor-pointer"
+                  >
+                    Copy Billing Address
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerDrawer(true)}
+                    className="text-slate-400 hover:text-blue-600 cursor-pointer"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
-              <textarea
-                rows={3}
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none resize-none leading-relaxed"
-              />
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 leading-relaxed min-h-[90px]">
+                {shippingAddress.split('\n').map((line, idx) => (
+                  <p key={idx}>{line}</p>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Custom Fields Card */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs space-y-4 card-lift">
+        {/* Custom Fields Card matching Screenshot 1 */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">Custom Fields</h2>
+            <h2 className="text-xs font-bold text-slate-800">Custom Fields</h2>
             <button
               type="button"
-              className="text-xs font-bold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+              onClick={() => setShowCustomFieldsModal(true)}
+              className="text-xs font-semibold text-slate-600 hover:text-blue-600 flex items-center gap-1 cursor-pointer"
             >
               <Sliders className="w-3.5 h-3.5" />
               <span>Add Custom Fields ▾</span>
@@ -673,171 +934,249 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="w-full sm:w-72">
-              <label className="text-xs font-bold text-slate-700 block mb-1">Quotation No</label>
+            <div className="w-full sm:w-64">
+              <label className="text-xs text-slate-600 block mb-1">Quotation No</label>
               <input
                 type="text"
                 placeholder="Enter Quotation No"
                 value={quotationNo}
                 onChange={(e) => setQuotationNo(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
               />
             </div>
 
             <div className="flex items-center gap-2 pt-4">
               <input
                 type="checkbox"
-                id="transporterCheckbox"
+                id="transporterCheck"
                 checked={transporterDetails}
                 onChange={(e) => setTransporterDetails(e.target.checked)}
-                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
               />
-              <label htmlFor="transporterCheckbox" className="text-xs font-bold text-slate-700 cursor-pointer">
+              <label htmlFor="transporterCheck" className="text-xs text-slate-700 cursor-pointer">
                 Transporter Details
               </label>
             </div>
           </div>
+
+          {transporterDetails && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 animate-fade-in text-xs">
+              <div>
+                <label className="text-[11px] text-slate-500 block mb-1">Transporter Name</label>
+                <input
+                  type="text"
+                  value={transporterInfo.transporterName}
+                  onChange={(e) => setTransporterInfo({ ...transporterInfo, transporterName: e.target.value })}
+                  placeholder="e.g. VRL Logistics"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-500 block mb-1">Transporter ID</label>
+                <input
+                  type="text"
+                  value={transporterInfo.transporterId}
+                  onChange={(e) => setTransporterInfo({ ...transporterInfo, transporterId: e.target.value })}
+                  placeholder="e.g. 03AAAAA0000A1Z5"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-500 block mb-1">Doc / Challan No.</label>
+                <input
+                  type="text"
+                  value={transporterInfo.docNo}
+                  onChange={(e) => setTransporterInfo({ ...transporterInfo, docNo: e.target.value })}
+                  placeholder="e.g. DC-1094"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-500 block mb-1">Vehicle No.</label>
+                <input
+                  type="text"
+                  value={transporterInfo.vehicleNo}
+                  onChange={(e) => setTransporterInfo({ ...transporterInfo, vehicleNo: e.target.value })}
+                  placeholder="e.g. PB65AB1234"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono uppercase"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Goods / Service Multi-Row Dynamic Table (matching Screenshot 1 & 2) */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden card-lift">
-          <div className="p-4 px-6 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">Goods / Service Items</h2>
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-bold text-slate-600">Rate Mode:</label>
-              <select
-                value={globalRateType}
-                onChange={(e) => setGlobalRateType(e.target.value as any)}
-                className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 shadow-2xs"
-              >
-                <option value="EXCLUSIVE_GST">Exclusive GST</option>
-                <option value="INCLUSIVE_GST">Inclusive GST</option>
-              </select>
-            </div>
-          </div>
-
+        {/* Goods / Service Items Table matching Screenshot 1 & 2 */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-100/80 text-slate-600 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                  <th className="py-3 px-3 text-center w-12">SR.NO.</th>
-                  <th className="py-3 px-4 min-w-[260px]">GOODS/SERVICE</th>
-                  <th className="py-3 px-3 text-center w-24">HSN/SAC</th>
-                  <th className="py-3 px-3 text-center w-24">QTY</th>
-                  <th className="py-3 px-3 text-right min-w-[140px]">
-                    <div className="flex items-center justify-end gap-1">
+                <tr className="bg-[#EEF2F9] text-slate-600 font-bold text-[11px] border-b border-slate-200">
+                  <th className="py-2.5 px-3 text-center w-12">SR.NO.</th>
+                  <th className="py-2.5 px-4 min-w-[300px]">GOODS/SERVICE</th>
+                  <th className="py-2.5 px-3 text-center w-28">HSN/SAC</th>
+                  <th className="py-2.5 px-3 text-center w-24">QTY</th>
+                  <th className="py-2.5 px-3 text-right min-w-[150px]">
+                    <div className="flex items-center justify-end gap-1.5">
                       <span>RATE (₹)</span>
-                      <span className="text-[9px] text-blue-600 font-semibold">({globalRateType === 'EXCLUSIVE_GST' ? 'Excl' : 'Incl'})</span>
+                      <select
+                        value={globalRateType}
+                        onChange={(e) => setGlobalRateType(e.target.value as any)}
+                        className="bg-transparent border border-slate-300 rounded px-1 py-0.5 text-[10px] font-medium text-slate-700 cursor-pointer"
+                      >
+                        <option value="EXCLUSIVE_GST">Exclusive GST</option>
+                        <option value="INCLUSIVE_GST">Inclusive GST</option>
+                      </select>
                     </div>
                   </th>
-                  <th className="py-3 px-3 text-center w-24">GST RATE(%)</th>
-                  <th className="py-3 px-4 text-right w-32">AMOUNT (₹)</th>
-                  <th className="py-3 px-2 text-center w-12"></th>
+                  <th className="py-2.5 px-3 text-center w-24">GST RATE(%)</th>
+                  <th className="py-2.5 px-4 text-right w-32">AMOUNT (₹)</th>
+                  <th className="py-2.5 px-2 text-center w-10">🎵</th>
+                  <th className="py-2.5 px-2 text-center w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-3 text-center font-bold text-slate-500">
+                  <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-2.5 px-3 text-center font-semibold text-slate-600">
                       {idx + 1}
                     </td>
 
-                    {/* Service Name Input + Quick Preset Selector */}
-                    <td className="py-3 px-4">
-                      <div className="space-y-1.5">
-                        <div className="relative">
+                    {/* Service Name with preset dropdown & pencil icon */}
+                    <td className="py-2.5 px-4">
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
                           <input
                             type="text"
                             value={item.desc}
                             onChange={(e) => updateRow(idx, { desc: e.target.value })}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                            placeholder="Enter Service or Product Name"
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+                            placeholder="Please select goods/service"
                           />
                         </div>
 
-                        {/* Deliverables / Sub bullets */}
-                        {item.deliverables && item.deliverables.length > 0 && (
-                          <div className="pl-2 border-l-2 border-slate-200 space-y-1">
-                            {item.deliverables.map((del, dIdx) => (
-                              <input
-                                key={dIdx}
-                                type="text"
-                                value={del}
-                                onChange={(e) => {
-                                  const updatedDels = [...(item.deliverables || [])];
-                                  updatedDels[dIdx] = e.target.value;
-                                  updateRow(idx, { deliverables: updatedDels });
-                                }}
-                                className="w-full px-2 py-0.5 text-[11px] text-slate-600 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none"
-                              />
+                        {/* Quick Presets selector dropdown */}
+                        <div className="relative shrink-0">
+                          <select
+                            onChange={(e) => {
+                              const found = PRESET_SERVICES.find((s) => s.desc === e.target.value);
+                              if (found) {
+                                updateRow(idx, {
+                                  desc: found.desc,
+                                  hsn: found.hsn,
+                                  rate: found.defaultRate,
+                                  unit: found.unit,
+                                });
+                              }
+                            }}
+                            className="w-5 h-7 opacity-0 absolute inset-0 cursor-pointer"
+                            title="Pick from standard catalog"
+                          >
+                            <option value="">Select Service Catalog</option>
+                            {PRESET_SERVICES.map((s) => (
+                              <option key={s.desc} value={s.desc}>
+                                {s.desc}
+                              </option>
                             ))}
-                          </div>
-                        )}
+                          </select>
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTuneItemIndex(idx);
+                            setShowItemTuneModal(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-blue-600 cursor-pointer"
+                          title="Edit Line Details"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </td>
 
                     {/* HSN/SAC */}
-                    <td className="py-3 px-3 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       <input
                         type="text"
                         value={item.hsn}
                         onChange={(e) => updateRow(idx, { hsn: e.target.value })}
-                        className="w-full text-center px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full text-center px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                       />
                     </td>
 
-                    {/* QTY & Unit */}
-                    <td className="py-3 px-3 text-center">
-                      <div className="flex items-center gap-1">
+                    {/* QTY & Unit underneath matching Screenshot 1 */}
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="flex flex-col items-center">
                         <input
                           type="number"
                           min="1"
                           value={item.qty}
                           onChange={(e) => updateRow(idx, { qty: Number(e.target.value) || 1 })}
-                          className="w-12 text-center px-1.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                          className="w-16 text-center px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                         />
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">{item.unit || 'MTH'}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold uppercase mt-0.5">
+                          {item.unit || 'MTH'}
+                        </span>
                       </div>
                     </td>
 
                     {/* Rate */}
-                    <td className="py-3 px-3 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       <input
                         type="number"
                         step="0.01"
                         value={item.rate}
                         onChange={(e) => updateRow(idx, { rate: Number(e.target.value) || 0 })}
-                        className="w-full text-right px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                        className="w-full text-right px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                       />
                     </td>
 
                     {/* GST Rate Dropdown */}
-                    <td className="py-3 px-3 text-center">
-                      <select
-                        value={item.gstRate}
-                        onChange={(e) => updateRow(idx, { gstRate: Number(e.target.value) })}
-                        className="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
-                      >
-                        <option value="18">18%</option>
-                        <option value="0">0%</option>
-                        <option value="5">5%</option>
-                        <option value="12">12%</option>
-                        <option value="28">28%</option>
-                      </select>
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="relative">
+                        <select
+                          value={item.gstRate}
+                          onChange={(e) => updateRow(idx, { gstRate: Number(e.target.value) })}
+                          className="w-full pl-2 pr-6 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none appearance-none"
+                        >
+                          <option value="18">18%</option>
+                          <option value="0">0%</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="28">28%</option>
+                        </select>
+                        <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2 pointer-events-none" />
+                      </div>
                     </td>
 
                     {/* Row Amount */}
-                    <td className="py-3 px-4 text-right font-mono font-black text-slate-900 text-xs">
+                    <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-800 text-xs">
                       {formatINRPlain(item.totalAmount)}
                     </td>
 
+                    {/* Tune / Notes button 🎵 */}
+                    <td className="py-2.5 px-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTuneItemIndex(idx);
+                          setShowItemTuneModal(true);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Line item deliverables & notes"
+                      >
+                        🎵
+                      </button>
+                    </td>
+
                     {/* Delete Icon */}
-                    <td className="py-3 px-2 text-center">
+                    <td className="py-2.5 px-2 text-center">
                       <button
                         type="button"
                         onClick={() => removeRow(idx)}
                         disabled={items.length <= 1}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-30 cursor-pointer"
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-30 cursor-pointer"
                         title="Delete Item"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -849,49 +1188,61 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
             </table>
           </div>
 
-          {/* Table Footer: Add Row & Subtotal (matching Screenshot 2) */}
-          <div className="p-4 px-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
-            <button
-              type="button"
-              onClick={addRow}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all cursor-pointer shadow-2xs btn-press"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Row</span>
-            </button>
+          {/* Table Footer: Add Row & Subtotal matching Screenshot 2 */}
+          <div className="p-3 px-6 border-t border-slate-200 flex items-center justify-between bg-slate-50/60">
+            <div className="flex items-center gap-6">
+              <button
+                type="button"
+                onClick={addRow}
+                className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Row</span>
+              </button>
+              <span className="text-xs font-semibold text-slate-700">Subtotal</span>
+            </div>
 
-            <div className="flex items-center gap-8 text-xs font-bold text-slate-700">
-              <span className="text-slate-500 font-semibold">Subtotal</span>
-              <span className="font-mono bg-slate-200/70 px-2.5 py-1 rounded-lg text-slate-800">{totalItemsCount}</span>
-              <span className="font-mono text-sm font-black text-slate-900">{formatINRPlain(grandTotal)}</span>
+            <div className="flex items-center gap-16 text-xs font-semibold text-slate-700 pr-12">
+              <span className="font-mono text-center w-12">{totalQtySum}</span>
+              <span className="font-mono text-right w-28 font-bold text-slate-900">
+                {formatINRPlain(grandTotal)}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Bottom Section: Notes, Bank Details, Payment Received & Summary (matching Screenshot 2) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left Column: Notes & Document Upload (4 cols) */}
+        {/* Bottom 3-Column Layout matching Screenshot 2 & 3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Left Column: Special Notes & Attach Document (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-3 card-lift">
+            {/* Special Notes Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-700">Special Notes</label>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800">Special Notes</h3>
+                  <span className="text-[11px] text-slate-400">Write Notes or Instructions</span>
+                </div>
                 <span className="text-[10px] text-blue-600 font-bold font-mono">1000</span>
               </div>
               <textarea
-                rows={4}
+                rows={3}
                 value={specialNotes}
                 onChange={(e) => setSpecialNotes(e.target.value)}
                 placeholder="Type here your special notes for this invoice."
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none resize-none leading-relaxed"
+                maxLength={1000}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none resize-none leading-relaxed"
               />
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-3 card-lift">
-              <label className="text-xs font-black uppercase tracking-wider text-slate-700">Attach Document (Optional)</label>
-              <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-5 text-center cursor-pointer transition-colors bg-slate-50/50">
-                <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
-                <span className="text-xs font-bold text-blue-600 block">Click to upload</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">JPEG, PDF, DOC, DOCX, PNG, or JPG & Size up to 2MB</span>
+            {/* Attach Document Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
+              <h3 className="text-xs font-bold text-slate-800">Attach Document (Optional)</h3>
+              <div className="border border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-4 text-center cursor-pointer transition-colors bg-slate-50/40">
+                <Upload className="w-5 h-5 text-slate-400 mx-auto mb-1.5" />
+                <span className="text-xs font-semibold text-blue-600 block">Click to upload</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  JPEG, PDF, DOC, DOCX, PNG, or JPG & Size up to 2MB
+                </span>
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <input
@@ -899,135 +1250,164 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                   id="addDetailsCheck"
                   checked={wantAdditionalDetails}
                   onChange={(e) => setWantAdditionalDetails(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
                 />
-                <label htmlFor="addDetailsCheck" className="text-xs font-semibold text-slate-600 cursor-pointer">
+                <label htmlFor="addDetailsCheck" className="text-xs text-slate-600 cursor-pointer">
                   Want to add Additional Details
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Middle Column: Bank Details & Payment Received (4 cols) */}
+          {/* Center Column: Bank Details & Payment Received (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-3 card-lift">
-              <div className="flex items-center gap-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-700">Bank Details</label>
-                <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
+            {/* Bank Details Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
+              <div className="flex items-center gap-1">
+                <h3 className="text-xs font-bold text-slate-800">Bank Details</h3>
+                <HelpCircle className="w-3 h-3 text-slate-400" />
               </div>
-              <select
-                value={bankAccount}
-                onChange={(e) => setBankAccount(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-              >
-                <option value="CODEKAP">CODEKAP — HDFC Bank Ltd (50200112201868)</option>
-              </select>
-              <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-0.5">
-                <p><strong>A/C:</strong> CODEKAPS DIGITAL INNOVATIONS PVT LTD</p>
-                <p><strong>IFSC:</strong> HDFC0002684 • Mohali, Punjab</p>
+              <div className="relative">
+                <select
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none appearance-none"
+                >
+                  <option value="CODEKAP">CODEKAP</option>
+                  <option value="HDFC">HDFC Bank Ltd — 50200112201868</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
 
-            {/* Is Payment Received Card (matching Screenshot 2) */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-2xs space-y-4 card-lift">
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-extrabold text-slate-900">
+            {/* Is Payment Received Card matching Screenshot 2 */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
                 <input
                   type="checkbox"
                   checked={isPaymentReceived}
                   onChange={(e) => setIsPaymentReceived(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                  className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
                 />
                 <span>Is Payment Received?</span>
               </label>
 
               {isPaymentReceived && (
-                <div className="space-y-3 pt-2 text-xs">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Payment Mode</label>
-                      <select
-                        value={paymentMode}
-                        onChange={(e) => setPaymentMode(e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                      >
-                        <option value="IMPS">IMPS</option>
-                        <option value="UPI">UPI</option>
-                        <option value="NEFT">NEFT</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Card">Card</option>
-                      </select>
-                    </div>
+                <div className="space-y-3 pt-1 text-xs">
+                  {payments.map((p, pIdx) => (
+                    <div key={p.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Payment Mode</label>
+                          <div className="relative">
+                            <select
+                              value={p.mode}
+                              onChange={(e) => updatePaymentRow(p.id, { mode: e.target.value })}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-medium text-slate-800 focus:outline-none appearance-none"
+                            >
+                              <option value="IMPS">IMPS</option>
+                              <option value="UPI">UPI</option>
+                              <option value="NEFT">NEFT</option>
+                              <option value="RTGS">RTGS</option>
+                              <option value="Cheque">Cheque</option>
+                              <option value="Cash">Cash</option>
+                              <option value="Net Banking">Net Banking</option>
+                            </select>
+                            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2 pointer-events-none" />
+                          </div>
+                        </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Ref. No.</label>
-                      <input
-                        type="text"
-                        value={paymentRefNo}
-                        onChange={(e) => setPaymentRefNo(e.target.value)}
-                        placeholder="e.g. AD/0102"
-                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900"
-                      />
-                    </div>
-                  </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Ref. No.</label>
+                          <input
+                            type="text"
+                            value={p.refNo}
+                            onChange={(e) => updatePaymentRow(p.id, { refNo: e.target.value })}
+                            placeholder="AD/0102"
+                            className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono font-medium text-slate-800 focus:outline-none"
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">Deposit to</label>
-                    <select
-                      value={depositTo}
-                      onChange={(e) => setDepositTo(e.target.value)}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900"
-                    >
-                      <option value="CODEKAP">CODEKAP</option>
-                    </select>
-                  </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-slate-600 block mb-0.5">Deposit to</label>
+                          <div className="relative">
+                            <select
+                              value={p.depositTo}
+                              onChange={(e) => updatePaymentRow(p.id, { depositTo: e.target.value })}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-medium text-slate-800 focus:outline-none appearance-none"
+                            >
+                              <option value="CODEKAP">CODEKAP</option>
+                              <option value="HDFC Bank">HDFC Bank</option>
+                              <option value="Cash in Hand">Cash in Hand</option>
+                            </select>
+                            <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-2 pointer-events-none" />
+                          </div>
+                        </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-600">Amount (₹)</label>
-                      <button
-                        type="button"
-                        onClick={handlePayFull}
-                        className="text-[10px] text-blue-600 font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>Pay full</span>
-                      </button>
+                        <div>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="text-[10px] font-semibold text-slate-600">Amount (₹)</label>
+                            <button
+                              type="button"
+                              onClick={() => handlePayFull(p.id)}
+                              className="text-[10px] text-blue-600 font-bold flex items-center gap-0.5 hover:underline"
+                            >
+                              <Check className="w-2.5 h-2.5" />
+                              <span>Pay full</span>
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={p.amount}
+                              onChange={(e) => updatePaymentRow(p.id, { amount: Number(e.target.value) || 0 })}
+                              className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs font-mono font-bold text-slate-800 focus:outline-none"
+                            />
+                            {payments.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removePaymentRow(p.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(Number(e.target.value) || 0)}
-                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-black text-slate-900"
-                    />
-                  </div>
+                  ))}
 
                   <button
                     type="button"
-                    className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer pt-1"
+                    onClick={addPaymentRow}
+                    className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer pt-1"
                   >
                     <Plus className="w-3 h-3" />
-                    <span>Add More Payment</span>
+                    <span>+ Add More Payment</span>
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Column: Summary Box (4 cols) (matching Screenshot 2) */}
+          {/* Right Column: Summary Card matching Screenshot 2 & 3 */}
           <div className="lg:col-span-4">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs space-y-4 card-lift">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">Summary</h2>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-3">
+              <h2 className="text-xs font-bold text-slate-800">Summary</h2>
 
-              <div className="space-y-3 text-xs border-b border-slate-200 pb-4">
+              <div className="space-y-2.5 text-xs">
                 {/* Discount Before Tax */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-600">Discount Before Tax</span>
-                  <div className="flex items-center gap-1.5 w-32">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Discount Before Tax</span>
+                  <div className="flex items-center gap-1.5">
                     <select
                       value={discountType}
                       onChange={(e) => setDiscountType(e.target.value as any)}
-                      className="px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
+                      className="px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-medium"
                     >
                       <option value="PERCENTAGE">%</option>
                       <option value="FIXED">₹</option>
@@ -1037,130 +1417,219 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                       min="0"
                       value={discountValue}
                       onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
-                      className="w-16 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-right font-mono"
+                      className="w-16 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs text-right font-mono"
                     />
+                    <span className="w-16 text-right font-mono font-medium text-slate-700">
+                      {formatINRPlain(discountAmountCalc)}
+                    </span>
                   </div>
                 </div>
 
                 {/* Taxable Amount */}
                 <div className="flex items-center justify-between text-slate-700">
-                  <span className="font-bold">Taxable Amt.</span>
-                  <span className="font-mono font-bold">₹{formatINRPlain(totalTaxableAmt)}</span>
+                  <span>Taxable Amt.</span>
+                  <span className="font-mono font-semibold">₹{formatINRPlain(totalTaxableAmt)}</span>
                 </div>
 
-                {/* Optional Service Charge */}
+                {/* Add service charge with tax */}
                 {showServiceCharge ? (
                   <div className="flex items-center justify-between text-slate-700">
-                    <span className="font-medium">Service Charge</span>
+                    <span className="text-[11px]">Service Charge</span>
                     <input
                       type="number"
                       value={serviceCharge}
                       onChange={(e) => setServiceCharge(Number(e.target.value) || 0)}
-                      className="w-24 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-right font-mono"
+                      className="w-20 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs text-right font-mono"
                     />
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowServiceCharge(true)}
-                    className="text-[11px] text-blue-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>Add service charge with tax</span>
+                    <span>+ Add service charge with tax</span>
                   </button>
                 )}
 
+                {/* Total Taxable Amt. */}
                 <div className="flex items-center justify-between text-slate-700 pt-1 border-t border-slate-100">
-                  <span className="font-bold">Total Taxable Amt.</span>
-                  <span className="font-mono font-bold">₹{formatINRPlain(totalTaxableAmt)}</span>
+                  <span>Total Taxable Amt.</span>
+                  <span className="font-mono font-semibold">₹{formatINRPlain(totalTaxableAmt)}</span>
                 </div>
 
-                {/* GST Breakdown (IGST or CGST/SGST) */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">{isInterState ? 'IGST' : 'CGST + SGST'}</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsInterState(!isInterState)}
-                        className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-blue-600 hover:bg-blue-50 font-bold uppercase"
-                      >
-                        {isInterState ? 'Switch Intra' : 'Switch Inter'}
-                      </button>
-                    </div>
-                    <span className="font-mono font-bold">₹{formatINRPlain(totalTaxAmt)}</span>
+                {/* IGST or CGST/SGST */}
+                {isInterState ? (
+                  <div className="flex items-center justify-between text-slate-700">
+                    <span>IGST</span>
+                    <span className="font-mono font-semibold">₹{formatINRPlain(igstAmt)}</span>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span>SGST</span>
+                      <span className="font-mono font-semibold">₹{formatINRPlain(sgstAmt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-700">
+                      <span>CGST</span>
+                      <span className="font-mono font-semibold">₹{formatINRPlain(cgstAmt)}</span>
+                    </div>
+                  </>
+                )}
 
                 {/* Sub Total */}
-                <div className="flex items-center justify-between text-slate-900 font-extrabold pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between text-slate-800 font-semibold pt-1 border-t border-slate-100">
                   <span>Sub Total</span>
                   <span className="font-mono">₹{formatINRPlain(calculatedSubTotal)}</span>
                 </div>
 
-                {/* Optional Other Charges */}
+                {/* Add another charges */}
                 {showOtherCharges ? (
                   <div className="flex items-center justify-between text-slate-700">
-                    <span className="font-medium">Other Charges</span>
+                    <span className="text-[11px]">Other Charges</span>
                     <input
                       type="number"
                       value={otherCharges}
                       onChange={(e) => setOtherCharges(Number(e.target.value) || 0)}
-                      className="w-24 px-1.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-right font-mono"
+                      className="w-20 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs text-right font-mono"
                     />
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowOtherCharges(true)}
-                    className="text-[11px] text-blue-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>Add another charges</span>
+                    <span>+ Add another charges</span>
                   </button>
                 )}
-              </div>
 
-              {/* Final Grand Total Display */}
-              <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-1 shadow-lg">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">Total Invoice Value</span>
-                <div className="text-2xl font-black font-mono tracking-tight text-white">
-                  ₹{formatINRPlain(grandTotal)}
+                {/* Discount After Tax */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-slate-600">Discount After Tax</span>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={discountAfterTaxType}
+                      onChange={(e) => setDiscountAfterTaxType(e.target.value as any)}
+                      className="px-1 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-medium"
+                    >
+                      <option value="PERCENTAGE">%</option>
+                      <option value="FIXED">₹</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      value={discountAfterTaxValue}
+                      onChange={(e) => setDiscountAfterTaxValue(Number(e.target.value) || 0)}
+                      className="w-16 px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs text-right font-mono"
+                    />
+                    <span className="w-16 text-right font-mono font-medium text-slate-700">
+                      {formatINRPlain(discountAfterTaxCalc)}
+                    </span>
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800">
-                  <span>Payment Status:</span>
-                  <span className={isPaymentReceived ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
-                    {isPaymentReceived ? '✓ Fully Received' : 'Draft / Unpaid'}
+
+                {/* Auto Round Off Checkbox */}
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                  <input
+                    type="checkbox"
+                    id="roundOffCheck"
+                    checked={autoRoundOff}
+                    onChange={(e) => setAutoRoundOff(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <label htmlFor="roundOffCheck" className="text-xs text-slate-700 cursor-pointer">
+                    Auto Round Off
+                  </label>
+                </div>
+
+                {/* Total Amount matching Screenshot 3 */}
+                <div className="flex items-center justify-between text-slate-900 font-bold text-sm pt-2 border-t border-slate-200">
+                  <span>Total Amount</span>
+                  <span className="font-mono text-base font-bold">₹{formatINRPlain(grandTotal)}</span>
+                </div>
+
+                {/* Amount Received */}
+                <div className="flex items-center justify-between text-slate-700">
+                  <span>Amount Received</span>
+                  <span className="font-mono font-semibold">₹{formatINRPlain(totalAmountReceived)}</span>
+                </div>
+
+                {/* Balance Amount */}
+                <div className="flex items-center justify-between text-slate-700 font-semibold pb-1">
+                  <span>Balance Amount</span>
+                  <span className={`font-mono ${balanceDue > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                    ₹{formatINRPlain(balanceDue)}
                   </span>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleSaveInvoice(true)}
-                  className="w-full py-3 px-4 rounded-xl text-xs font-extrabold text-white bg-amber-500 hover:bg-amber-600 transition-all shadow-md shadow-amber-500/25 flex items-center justify-center gap-2 cursor-pointer btn-press"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Save & Preview Tax Invoice (PDF)</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleSaveInvoice(false)}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer btn-press"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Save & Close</span>
-                </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Footer Actions matching Screenshot 3 */}
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => (onCancel ? onCancel() : router.push('/finance/invoices'))}
+            className="px-5 py-2 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => handleSaveInvoice(false)}
+            className="px-8 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 cursor-pointer disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </div>
+
+      {/* Sticky Bottom Shortcuts Bar matching Screenshot 3 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2 px-6 z-30 shadow-lg text-[10px] text-slate-600 font-medium">
+        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="font-bold text-slate-800 uppercase tracking-wider">Shortcuts:</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">ALT + S</kbd> Save</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">ALT + P</kbd> Print</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">CTRL + SHIFT + L</kbd> Download Invoice</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">ALT + D</kbd> Discard</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">ALT + A</kbd> Add New Row</span>
+            <span><kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded font-mono font-bold">ALT + R</kbd> Remove Row</span>
+          </div>
+        </div>
+      </div>
+
+      {/* New Customer Drawer (Screenshot 5) */}
+      <NewCustomerDrawer
+        isOpen={showCustomerDrawer}
+        onClose={() => setShowCustomerDrawer(false)}
+        onSave={handleCustomerSaved}
+        initialData={{
+          accountDisplayName: customerName,
+          legalName: customerName,
+        }}
+      />
+
+      {/* Custom Fields Modal */}
+      <CustomFieldsModal
+        isOpen={showCustomFieldsModal}
+        onClose={() => setShowCustomFieldsModal(false)}
+        customFields={customFieldsList}
+        onSave={(fields) => setCustomFieldsList(fields)}
+      />
+
+      {/* Item Tune Modal (Row details / Deliverables) */}
+      <ItemTuneModal
+        isOpen={showItemTuneModal}
+        onClose={() => setShowItemTuneModal(false)}
+        item={items[tuneItemIndex] || null}
+        rowIndex={tuneItemIndex}
+        onSave={(idx, updates) => updateRow(idx, updates)}
+      />
 
       {/* Tax Invoice Fullscreen Preview & Print Modal */}
       {showPreviewModal && (

@@ -73,7 +73,7 @@ export default function InvoicesPage() {
       inv.clientName.toLowerCase().includes(search.toLowerCase()) ||
       (inv.clientGstin && inv.clientGstin.toLowerCase().includes(search.toLowerCase()));
 
-    const st = inv.status.toUpperCase();
+    const st = (inv.status || 'DRAFT').toUpperCase();
     const matchStatus =
       statusFilter === 'ALL' ||
       (statusFilter === 'RECEIVED' && (st === 'RECEIVED' || st === 'PAID')) ||
@@ -219,7 +219,7 @@ export default function InvoicesPage() {
                   </tr>
                 ) : (
                   filtered.map((inv) => {
-                    const st = inv.status.toUpperCase();
+                    const st = (inv.status || 'DRAFT').toUpperCase();
                     const isReceived = st === 'RECEIVED' || st === 'PAID';
                     const taxVal = (inv.cgst || 0) + (inv.sgst || 0) + (inv.igst || 0);
 

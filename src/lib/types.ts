@@ -396,42 +396,7 @@ export interface ExpenseItem {
   [key: string]: any;
 }
 
-export interface InvoiceItem {
-  id: string;
-  invoiceNumber: string;
-  clientName: string;
-  clientGstin?: string;
-  billingAddress?: string;
-  date?: string;
-  subtotal: number;
-  cgst?: number;
-  sgst?: number;
-  igst?: number;
-  amount: number;
-  tax?: number;
-  totalAmount: number;
-  razorpayPaymentLinkId?: string;
-  itemsJson?: string;
-  status?: 'PAID' | 'PENDING' | 'OVERDUE' | 'DRAFT' | string;
-  dueDate?: string;
-  issueDate?: string;
-  [key: string]: any;
-}
 
-export interface QuotationItem {
-  id: string;
-  quotationNumber: string;
-  clientName: string;
-  date?: string;
-  subtotal: number;
-  taxAmount: number;
-  amount: number;
-  totalAmount: number;
-  status?: 'SENT' | 'ACCEPTED' | 'REJECTED' | 'DRAFT' | string;
-  validUntil?: string;
-  createdAt?: string;
-  [key: string]: any;
-}
 
 export type ProjectHealth = 'ON_TRACK' | 'AT_RISK' | 'CRITICAL' | 'DELAYED' | string;
 export type ProjectStatus = 'ACTIVE' | 'PLANNING' | 'COMPLETED' | 'ON_HOLD' | string;
@@ -747,6 +712,7 @@ export interface InvoiceItem {
   otherCharges?: number | null;
   roundOff?: number | null;
   totalAmount: number;
+  amount?: number;
   amountPaid: number;
   balanceDue: number;
   currency: string;
@@ -762,6 +728,7 @@ export interface InvoiceItem {
   razorpayPaymentId?: string | null;
   createdAt: string;
   updatedAt: string;
+  [key: string]: any;
 }
 
 export interface QuotationLineItem {
@@ -812,6 +779,7 @@ export interface QuotationItem {
   roundOff?: number | null;
   autoRoundOff?: boolean | null;
   totalAmount: number;
+  amount?: number;
   currency: string;
   status: string;
   notes?: string | null;
@@ -819,7 +787,33 @@ export interface QuotationItem {
   terms?: string | null;
   createdAt: string;
   updatedAt: string;
+  [key: string]: any;
 }
 
-
-
+export interface SundryDebtorCustomer {
+  id?: string;
+  registrationType: string;
+  partyType: string;
+  legalName?: string;
+  accountDisplayName: string;
+  shortAliasName?: string;
+  email?: string;
+  mobileNo?: string;
+  contactPersonName?: string;
+  panItTanNo?: string;
+  creditPeriodDays?: string | number;
+  defaultPaymentMode?: string;
+  statutoryInfo?: boolean;
+  addressLine1: string;
+  addressLine2?: string;
+  country: string;
+  pincode: string;
+  city: string;
+  state: string;
+  bankDetailsProvided?: boolean;
+  enableCreditLimit?: boolean;
+  openingBalance?: number;
+  balanceType?: 'Cr' | 'Dr';
+  balanceFormatted?: string;
+  gstin?: string;
+}

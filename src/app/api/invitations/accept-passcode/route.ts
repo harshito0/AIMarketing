@@ -38,6 +38,7 @@ export async function POST(req: Request) {
           email: (email || 'member@codekap.com').toLowerCase().trim(),
           name: name || 'Team Member',
           role: 'TEAM_MEMBER',
+          department: null,
           passcode: withHyphen,
           tokenHash: null,
           invitedBy: 'usr_aman',

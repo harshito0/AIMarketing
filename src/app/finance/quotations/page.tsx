@@ -68,7 +68,7 @@ export default function QuotationsPage() {
       q.clientName.toLowerCase().includes(search.toLowerCase()) ||
       (q.clientGstin && q.clientGstin.toLowerCase().includes(search.toLowerCase()));
 
-    const st = q.status.toUpperCase();
+    const st = (q.status || 'DRAFT').toUpperCase();
     const matchStatus =
       statusFilter === 'ALL' ||
       (statusFilter === 'ACCEPTED' && st === 'ACCEPTED') ||
@@ -80,7 +80,7 @@ export default function QuotationsPage() {
 
   const totalQuoted = quotations.reduce((acc, q) => acc + (q.totalAmount || 0), 0);
   const acceptedValue = quotations
-    .filter((q) => q.status.toUpperCase() === 'ACCEPTED')
+    .filter((q) => (q.status || 'DRAFT').toUpperCase() === 'ACCEPTED')
     .reduce((acc, q) => acc + (q.totalAmount || 0), 0);
   const pendingValue = totalQuoted - acceptedValue;
   const avgDeal = quotations.length > 0 ? totalQuoted / quotations.length : 0;
@@ -211,7 +211,7 @@ export default function QuotationsPage() {
                   </tr>
                 ) : (
                   filtered.map((q) => {
-                    const st = q.status.toUpperCase();
+                    const st = (q.status || 'DRAFT').toUpperCase();
                     const isAccepted = st === 'ACCEPTED';
                     return (
                       <tr

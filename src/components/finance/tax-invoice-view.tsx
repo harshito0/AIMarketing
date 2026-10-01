@@ -59,10 +59,10 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
     const taxRow = it.taxableAmount || (it.qty * it.rate);
     hsnMap[code].taxable += taxRow;
 
-    if (invoice.igst > 0 || (invoice.cgst === 0 && invoice.sgst === 0 && it.gstRate > 0)) {
+    if ((invoice.igst || 0) > 0 || ((invoice.cgst || 0) === 0 && (invoice.sgst || 0) === 0 && it.gstRate > 0)) {
       hsnMap[code].igstRate = it.gstRate || 18;
       hsnMap[code].igstAmt += it.gstAmount || Number(((taxRow * hsnMap[code].igstRate) / 100).toFixed(2));
-    } else if (invoice.cgst > 0 || invoice.sgst > 0) {
+    } else if ((invoice.cgst || 0) > 0 || (invoice.sgst || 0) > 0) {
       hsnMap[code].cgstRate = (it.gstRate || 18) / 2;
       hsnMap[code].sgstRate = (it.gstRate || 18) / 2;
       hsnMap[code].cgstAmt += Number(((taxRow * hsnMap[code].cgstRate) / 100).toFixed(2));

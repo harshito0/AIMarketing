@@ -81,7 +81,7 @@ export function Sidebar() {
   const isAdmin = mounted ? (role === 'ADMIN' || profile?.email === 'aman@codekap.com') : true;
   const userNormDept = normalizeDept(activeDepartment || department);
 
-  const navGroups: NavGroup[] = [
+  const navGroups: NavGroup[] = React.useMemo(() => [
     {
       id: 'management',
       label: 'Management',
@@ -182,7 +182,7 @@ export function Sidebar() {
         { name: 'Platform Settings', href: '/settings', icon: Settings },
       ],
     },
-  ];
+  ], [isAdmin]);
 
   // Filter groups and sub-items based on active department
   const filteredNavGroups = React.useMemo(() => {
@@ -211,21 +211,27 @@ export function Sidebar() {
     team: false,
     projects: true,
     workspaces: true,
-    finance: false,
+    finance: true,
     system: false,
   });
 
-  // Auto-expand active group with smooth recognition
+  // Auto-expand active group with smooth recognition (prevent re-render loop)
   React.useEffect(() => {
     if (!pathname) return;
-    for (const group of filteredNavGroups) {
-      const hasActiveChild = group.items.some(
-        (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-      );
-      if (hasActiveChild) {
-        setOpenGroups((prev) => ({ ...prev, [group.id]: true }));
+    setOpenGroups((prev) => {
+      let hasChanges = false;
+      const next = { ...prev };
+      for (const group of filteredNavGroups) {
+        const hasActiveChild = group.items.some(
+          (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+        );
+        if (hasActiveChild && !next[group.id]) {
+          next[group.id] = true;
+          hasChanges = true;
+        }
       }
-    }
+      return hasChanges ? next : prev;
+    });
   }, [pathname, filteredNavGroups]);
 
   const toggleGroup = (groupId: string) => {

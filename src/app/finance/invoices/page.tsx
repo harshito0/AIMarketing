@@ -25,6 +25,7 @@ import {
   DollarSign,
   Building2,
   Layers,
+  Eye,
 } from 'lucide-react';
 
 export default function InvoicesPage() {
@@ -109,13 +110,14 @@ export default function InvoicesPage() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Link
-              href="/finance/invoices/create"
+            <button
+              type="button"
+              onClick={() => router.push('/finance/invoices/create')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer btn-press"
             >
               <Plus className="w-4 h-4" />
               <span>New Sales Invoice</span>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -293,21 +295,31 @@ export default function InvoicesPage() {
                             <button
                               type="button"
                               onClick={() => setSelectedInvoiceForPrint(inv)}
-                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer btn-press"
-                              title="Print Tax Invoice PDF"
+                              className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                              title="View Tax Invoice Preview"
                             >
-                              <Printer className="w-3.5 h-3.5 text-amber-600" />
-                              <span className="hidden sm:inline">Print Tax Invoice</span>
+                              <Eye className="w-3.5 h-3.5 text-blue-600" />
+                              <span>View</span>
                             </button>
 
-                            <Link
-                              href={`/finance/invoices/edit/${inv.id}`}
-                              className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                              title="Edit / Open Sales Invoice"
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/finance/invoices/edit/${inv.id}`)}
+                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                              title="Edit Sales Invoice"
                             >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Open</span>
-                            </Link>
+                              <Edit className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedInvoiceForPrint(inv)}
+                              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer btn-press"
+                              title="Print / Save PDF"
+                            >
+                              <Printer className="w-3.5 h-3.5 text-amber-600" />
+                            </button>
 
                             <button
                               type="button"

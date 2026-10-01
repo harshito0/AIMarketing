@@ -94,7 +94,7 @@ export default function InvoicesPage() {
   const totalTax = invoices.reduce((acc, inv) => acc + ((inv.cgst || 0) + (inv.sgst || 0) + (inv.igst || 0)), 0);
 
   return (
-    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
+    <AuthGuard>
       <DashboardLayout>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -227,17 +227,27 @@ export default function InvoicesPage() {
                       <tr
                         key={inv.id}
                         onClick={() => router.push(`/finance/invoices/edit/${inv.id}`)}
-                        className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                        className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
                       >
                         <td className="py-3.5 px-4 font-mono font-black text-slate-900">
-                          <div className="flex items-center gap-1.5">
-                            <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                          <Link
+                            href={`/finance/invoices/edit/${inv.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 text-blue-700 hover:text-blue-900 hover:underline"
+                          >
+                            <Receipt className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                             <span>{inv.invoiceNumber}</span>
-                          </div>
+                          </Link>
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <div className="font-extrabold text-slate-900">{inv.clientName}</div>
+                          <Link
+                            href={`/finance/invoices/edit/${inv.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-extrabold text-slate-900 group-hover:text-blue-700 transition-colors block"
+                          >
+                            {inv.clientName}
+                          </Link>
                           {inv.clientGstin ? (
                             <span className="text-[10px] text-slate-500 font-mono block">
                               GSTIN: {inv.clientGstin}
@@ -292,10 +302,11 @@ export default function InvoicesPage() {
 
                             <Link
                               href={`/finance/invoices/edit/${inv.id}`}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit Sales Invoice"
+                              className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                              title="Edit / Open Sales Invoice"
                             >
                               <Edit className="w-3.5 h-3.5" />
+                              <span>Open</span>
                             </Link>
 
                             <button

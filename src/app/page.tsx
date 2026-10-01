@@ -32,9 +32,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-amber-400 font-extrabold text-xl shadow-md shadow-slate-900/15 group-hover:scale-105 transition-transform duration-200 border border-slate-800">
-              K
-            </div>
+            <img
+              src="/images/codekap-logo.png"
+              alt="CodeKap"
+              className="w-10 h-10 object-contain group-hover:scale-105 transition-transform duration-200 shrink-0"
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-slate-900 text-base tracking-tight group-hover:text-blue-600 transition-colors">

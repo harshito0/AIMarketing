@@ -163,13 +163,13 @@ export function Sidebar() {
       id: 'finance',
       label: 'Finance & GST Billing',
       icon: Receipt,
-      departments: ['SALES', 'MANAGEMENT'],
+      departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'],
       items: [
-        { name: 'Finance Overview', href: '/finance', icon: DollarSign, departments: ['MANAGEMENT'] },
-        { name: 'Quotations', href: '/finance/quotations', icon: Receipt, departments: ['SALES', 'MANAGEMENT'] },
-        { name: 'Invoices & Payments', href: '/finance/invoices', icon: Receipt, departments: ['SALES', 'MANAGEMENT'] },
-        { name: 'Company Expenses', href: '/finance/expenses', icon: Wallet, departments: ['MANAGEMENT'] },
-        { name: 'GST & Business Reports', href: '/finance/reports', icon: PieChart, departments: ['MANAGEMENT'] },
+        { name: 'Finance Overview', href: '/finance', icon: DollarSign, departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+        { name: 'Quotations', href: '/finance/quotations', icon: Receipt, departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+        { name: 'Invoices & Payments', href: '/finance/invoices', icon: Receipt, departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+        { name: 'Company Expenses', href: '/finance/expenses', icon: Wallet, departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+        { name: 'GST & Business Reports', href: '/finance/reports', icon: PieChart, departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
       ],
     },
     {
@@ -245,9 +245,11 @@ export function Sidebar() {
       {/* Brand Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-amber-400 font-extrabold text-lg shadow-md shadow-slate-900/15 group-hover:scale-105 transition-transform duration-200 ease-out border border-slate-800">
-            K
-          </div>
+          <img
+            src="/images/codekap-logo.png"
+            alt="CodeKap"
+            className="w-9 h-9 object-contain group-hover:scale-105 transition-transform duration-200 ease-out shrink-0"
+          />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-slate-900 text-base tracking-tight group-hover:text-blue-600 transition-colors duration-200">

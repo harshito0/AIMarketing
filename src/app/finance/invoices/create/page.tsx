@@ -6,7 +6,7 @@ import { AuthGuard } from '@/components/auth-guard';
 
 export default function CreateSalesInvoicePage() {
   return (
-    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
+    <AuthGuard>
       <SalesInvoiceEditor />
     </AuthGuard>
   );

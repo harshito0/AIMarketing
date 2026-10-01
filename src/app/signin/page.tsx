@@ -362,9 +362,11 @@ export default function SignInPage() {
       {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-6">
         <Link href="/" className="inline-flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-amber-400 font-extrabold text-xl shadow-lg shadow-slate-900/15 group-hover:scale-105 transition-transform duration-200 border border-slate-800">
-            K
-          </div>
+          <img
+            src="/images/codekap-logo.png"
+            alt="CodeKap"
+            className="w-11 h-11 object-contain group-hover:scale-105 transition-transform duration-200 shrink-0"
+          />
           <div className="text-left">
             <div className="flex items-center gap-1.5">
               <span className="font-black text-slate-900 text-lg tracking-tight">CodeKap OS</span>

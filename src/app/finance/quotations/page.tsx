@@ -86,7 +86,7 @@ export default function QuotationsPage() {
   const avgDeal = quotations.length > 0 ? totalQuoted / quotations.length : 0;
 
   return (
-    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
+    <AuthGuard>
       <DashboardLayout>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -217,17 +217,27 @@ export default function QuotationsPage() {
                       <tr
                         key={q.id}
                         onClick={() => router.push(`/finance/quotations/edit/${q.id}`)}
-                        className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                        className="hover:bg-purple-50/40 transition-colors cursor-pointer group"
                       >
                         <td className="py-3.5 px-4 font-mono font-black text-slate-900">
-                          <div className="flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-purple-600" />
+                          <Link
+                            href={`/finance/quotations/edit/${q.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 text-purple-700 hover:text-purple-900 hover:underline"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                             <span>{q.quotationNumber}</span>
-                          </div>
+                          </Link>
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <div className="font-extrabold text-slate-900">{q.clientName}</div>
+                          <Link
+                            href={`/finance/quotations/edit/${q.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-extrabold text-slate-900 group-hover:text-purple-700 transition-colors block"
+                          >
+                            {q.clientName}
+                          </Link>
                           {q.clientGstin ? (
                             <span className="text-[10px] text-slate-500 font-mono block">
                               State/GSTIN: {q.clientGstin}
@@ -284,10 +294,11 @@ export default function QuotationsPage() {
 
                             <Link
                               href={`/finance/quotations/edit/${q.id}`}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-purple-600 hover:bg-purple-50 transition-colors"
-                              title="Edit Quotation"
+                              className="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                              title="Edit / Open Quotation"
                             >
                               <Edit className="w-3.5 h-3.5" />
+                              <span>Open</span>
                             </Link>
 
                             <button

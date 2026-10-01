@@ -39,8 +39,8 @@ export function Topbar() {
     { title: 'Creative AI Studio', category: 'Marketing', href: '/creative-studio', departments: ['MARKETING', 'MANAGEMENT'] },
     { title: 'Performance Marketing Campaign', category: 'Marketing', href: '/workspaces/marketing', departments: ['MARKETING', 'MANAGEMENT'] },
     { title: 'Lead Pipeline Kanban', category: 'CRM', href: '/crm/pipeline', departments: ['SALES', 'MANAGEMENT'] },
-    { title: 'Leads Directory', category: 'CRM', href: '/crm/leads', departments: ['SALES', 'MANAGEMENT'] },
-    { title: 'Tax & GST Invoices', category: 'Finance', href: '/finance/invoices', departments: ['MANAGEMENT'] },
+    { title: 'Tax & GST Invoices', category: 'Finance', href: '/finance/invoices', departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
+    { title: 'Quotations & Estimations', category: 'Finance', href: '/finance/quotations', departments: ['ALL', 'DEVELOPMENT', 'MARKETING', 'SALES', 'MANAGEMENT'] },
     { title: 'Client Business Hub', category: 'Clients', href: '/clients', departments: ['SALES', 'MANAGEMENT'] },
   ];
 

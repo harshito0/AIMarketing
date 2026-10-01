@@ -61,7 +61,7 @@ export default function EditQuotationPage() {
   }
 
   return (
-    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
+    <AuthGuard>
       <QuotationEditor
         initialQuotation={quotation}
         onSaved={() => router.push('/finance/quotations')}

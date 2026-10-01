@@ -61,7 +61,7 @@ export default function EditSalesInvoicePage() {
   }
 
   return (
-    <AuthGuard allowedDepartments={['Sales & Business Development', 'Sales', 'CRM', 'Administration & Management']}>
+    <AuthGuard>
       <SalesInvoiceEditor
         initialInvoice={invoice}
         onSaved={() => router.push('/finance/invoices')}

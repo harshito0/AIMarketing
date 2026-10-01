@@ -61,9 +61,11 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
       {/* Top Action Bar (Hidden in Print) */}
       <div className="print:hidden sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md px-6 py-3.5 mb-6 rounded-2xl flex items-center justify-between shadow-xl text-white">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-sm">
-            K
-          </div>
+          <img
+            src="/images/codekap-logo.png"
+            alt="CodeKap"
+            className="w-8 h-8 object-contain rounded-lg shrink-0"
+          />
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
               Quotation / Estimation Preview — {quotation.quotationNumber}
@@ -104,17 +106,17 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
         {/* PREMIUM WATERMARK LOGO IN BACKGROUND (User's audio requirement) */}
         {/* ============================================================== */}
         <div className="absolute inset-0 pointer-events-none select-none flex items-center justify-center z-0 overflow-hidden">
-          <div className="relative opacity-[0.05] print:opacity-[0.06] flex flex-col items-center justify-center">
-            <div className="w-96 h-96 rounded-full border-[18px] border-slate-900 flex items-center justify-center relative">
-              <span className="text-[200px] font-black tracking-tighter text-slate-900 leading-none select-none font-serif">
-                K
-              </span>
-              <div className="absolute inset-2 border-2 border-dashed border-slate-700 rounded-full" />
-            </div>
-            <span className="text-4xl font-black uppercase tracking-[0.35em] text-slate-900 mt-6 select-none">
+          <div className="relative opacity-[0.06] print:opacity-[0.07] flex flex-col items-center justify-center">
+            {/* Elegant Official CodeKap Brand Watermark Logo */}
+            <img
+              src="/images/codekap-logo.png"
+              alt="CodeKap"
+              className="w-72 h-72 object-contain select-none"
+            />
+            <span className="text-3xl font-black uppercase tracking-[0.35em] text-slate-900 mt-4 select-none">
               CODEKAP
             </span>
-            <span className="text-sm font-bold tracking-[0.4em] uppercase text-slate-700 mt-1 select-none">
+            <span className="text-xs font-bold tracking-[0.4em] uppercase text-slate-700 mt-1 select-none">
               Digital Innovations Pvt Ltd
             </span>
           </div>
@@ -131,9 +133,12 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
 
           {/* Company Details Box */}
           <div className="border border-slate-900 p-3 flex items-start gap-4">
-            <div className="w-12 h-12 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center font-black text-xl shrink-0 border border-slate-800 shadow-xs">
-              K
-            </div>
+            {/* Official CodeKap Logo */}
+            <img
+              src="/images/codekap-logo.png"
+              alt="CodeKap"
+              className="w-14 h-14 object-contain shrink-0"
+            />
             <div className="space-y-0.5">
               <h2 className="text-xs font-black uppercase tracking-tight text-slate-900">
                 CODEKAPS DIGITAL INNOVATIONS PRIVATE LIMITED

@@ -325,12 +325,14 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
                 </span>
               </div>
 
-              {/* Handcrafted Digital Signature */}
-              <div className="my-2 flex flex-col items-end">
-                <span className="font-serif italic text-2xl font-bold tracking-wider text-slate-800 -rotate-2 select-none">
-                  Aman Kapoor
-                </span>
-                <span className="text-[9px] text-slate-500 font-medium">Authorized Signatory</span>
+              {/* Official Aman Kapoor Signature */}
+              <div className="my-1.5 flex flex-col items-end">
+                <img
+                  src="/images/aman-signature.png"
+                  alt="Aman Kapoor Signature"
+                  className="h-14 w-auto max-w-[160px] object-contain select-none mix-blend-multiply"
+                />
+                <span className="text-[9px] text-slate-600 font-semibold mt-0.5">Authorized Signatory</span>
               </div>
 
               <div className="border-t border-slate-400 pt-1 text-[9px] text-slate-500">

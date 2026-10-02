@@ -8,6 +8,7 @@ import {
   QuotationLineItem,
   SundryDebtorCustomer,
 } from '@/lib/types';
+import { DEFAULT_BANK_DETAILS } from '@/lib/bank-details';
 import { formatINR, formatINRPlain } from '@/lib/invoice-utils';
 import { QuotationView } from './quotation-view';
 import { NewCustomerDrawer } from './new-customer-drawer';
@@ -23,6 +24,7 @@ import {
   AlertTriangle,
   Star,
   Search,
+  Building2,
   Sliders,
   Check,
   ChevronDown,
@@ -146,14 +148,14 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
   const [qNumPart, setQNumPart] = useState(
     initialQuotation?.quotationNumber
       ? initialQuotation.quotationNumber.replace(/^[A-Za-z]+-?/, '')
-      : '0004'
+      : ''
   );
   const [suffix, setSuffix] = useState(initialQuotation?.suffix || '');
   const [quotationDate, setQuotationDate] = useState(
-    initialQuotation?.date || '2026-09-26'
+    initialQuotation?.date || new Date().toISOString().split('T')[0]
   );
   const [validTill, setValidTill] = useState(
-    initialQuotation?.validUntil || '2026-10-26'
+    initialQuotation?.validUntil || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
   );
 
   // Items List
@@ -162,15 +164,15 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
       srNo: 1,
       desc: '',
       deliverables: [],
-      hsn: '4 to 8 digit',
-      qty: 0,
+      hsn: '998314',
+      qty: 1,
       unit: 'NOS',
       rate: 0,
       rateType: 'EXCLUSIVE_GST',
       discountPercent: 0,
       discountAmount: 0,
       taxableAmount: 0,
-      gstRate: 0,
+      gstRate: 18,
       gstAmount: 0,
       totalAmount: 0,
     },
@@ -196,14 +198,14 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
   const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [discountValue, setDiscountValue] = useState<number>(initialQuotation?.discountBeforeTax || 0);
   const [serviceCharge, setServiceCharge] = useState<number>(initialQuotation?.serviceCharge || 0);
-  const [showServiceCharge, setShowServiceCharge] = useState(false);
+  const [showServiceCharge, setShowServiceCharge] = useState(Boolean(initialQuotation?.serviceCharge));
   
   // Another charges row matching Screenshot 4 ("Select charges v", + - ₹ %, value, trash)
   const [chargeName, setChargeName] = useState('Select charges');
   const [chargeType, setChargeType] = useState<'+' | '-'>('+');
   const [chargeUnit, setChargeUnit] = useState<'₹' | '%'>('₹');
   const [chargeValue, setChargeValue] = useState<number>(initialQuotation?.otherCharges || 0);
-  const [showOtherChargeRow, setShowOtherChargeRow] = useState(false);
+  const [showOtherChargeRow, setShowOtherChargeRow] = useState(Boolean(initialQuotation?.otherCharges));
 
   const [discountAfterTaxType, setDiscountAfterTaxType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [discountAfterTaxValue, setDiscountAfterTaxValue] = useState<number>(initialQuotation?.discountAfterTax || 0);
@@ -211,6 +213,45 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
 
   // Special Notes
   const [specialNotes, setSpecialNotes] = useState(initialQuotation?.notes || '');
+
+  // Fetch next quotation number when creating new quotation
+  useEffect(() => {
+    if (!initialQuotation) {
+      fetch('/api/finance/quotations?nextNumber=true')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.nextNumPart) {
+            setQNumPart(data.nextNumPart);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialQuotation]);
+
+  // Sync state if initialQuotation arrives or updates
+  useEffect(() => {
+    if (initialQuotation) {
+      if (initialQuotation.clientName) setCustomerName(initialQuotation.clientName);
+      if (initialQuotation.clientPhone) setCustomerPhone(initialQuotation.clientPhone);
+      if (initialQuotation.clientEmail) setCustomerEmail(initialQuotation.clientEmail);
+      if (initialQuotation.clientGstin) setCustomerGstin(initialQuotation.clientGstin);
+      if (initialQuotation.billingAddress) setBillingAddress(initialQuotation.billingAddress);
+      if (initialQuotation.prefix) setPrefix(initialQuotation.prefix);
+      if (initialQuotation.quotationNumber) {
+        setQNumPart(initialQuotation.quotationNumber.replace(/^[A-Za-z]+-?/, ''));
+      }
+      if (initialQuotation.suffix !== undefined) setSuffix(initialQuotation.suffix || '');
+      if (initialQuotation.date) setQuotationDate(initialQuotation.date);
+      if (initialQuotation.validUntil) setValidTill(initialQuotation.validUntil);
+      if (initialQuotation.notes) setSpecialNotes(initialQuotation.notes);
+      if (initialQuotation.itemsJson) {
+        try {
+          const parsed = JSON.parse(initialQuotation.itemsJson);
+          if (Array.isArray(parsed) && parsed.length > 0) setItems(parsed);
+        } catch {}
+      }
+    }
+  }, [initialQuotation]);
 
   // Modals & Drawers
   const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>(PRESET_CUSTOMERS);
@@ -409,15 +450,9 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
     autoRoundOff,
     totalAmount: grandTotal,
     currency: 'INR',
-    status: initialQuotation?.status || 'DRAFT',
+    status: initialQuotation?.status === 'DELETED' ? 'DRAFT' : initialQuotation?.status || 'DRAFT',
     notes: specialNotes,
-    bankDetails: JSON.stringify({
-      accountHolderName: 'CODEKAPS DIGITAL INNOVATIONS PVT LTD',
-      bankName: 'HDFC Bank Ltd',
-      accountNo: '50200112201868',
-      ifscCode: 'HDFC0002684',
-      branch: 'Mohali, Punjab',
-    }),
+    bankDetails: JSON.stringify(DEFAULT_BANK_DETAILS),
     terms: `1. Payment: 50% advance along with work order, 50% on project milestone delivery.
 2. Validity: Quotation valid for 30 days from date of issue.
 3. GST: Registered under GST: 03AAMCC6345B1Z0.
@@ -874,6 +909,41 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
                 maxLength={1000}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:outline-none resize-none leading-relaxed"
               />
+            </div>
+
+            {/* Bank Details Card */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Bank Details (Printed on Quotation)</span>
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Current A/C
+                </span>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-[11px] text-slate-700">
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">Bank:</span>
+                  <span className="font-bold text-slate-900">{DEFAULT_BANK_DETAILS.bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">A/C No:</span>
+                  <span className="font-mono font-bold text-slate-900">{DEFAULT_BANK_DETAILS.accountNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">IFSC Code:</span>
+                  <span className="font-mono font-bold text-slate-900">{DEFAULT_BANK_DETAILS.ifscCode}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">Account Type:</span>
+                  <span className="font-bold text-blue-700">{DEFAULT_BANK_DETAILS.accountType}</span>
+                </div>
+                <div className="pt-1 text-[10px] text-slate-500 border-t border-slate-200 mt-1">
+                  <span>Branch: </span>
+                  <span className="text-slate-800">{DEFAULT_BANK_DETAILS.branch}</span>
+                </div>
+              </div>
             </div>
           </div>
 

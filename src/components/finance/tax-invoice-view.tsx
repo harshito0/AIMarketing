@@ -5,6 +5,8 @@ import { InvoiceItem, InvoiceLineItem, InvoiceBankDetails } from '@/lib/types';
 import { formatINR, formatINRPlain, numberToIndianWords } from '@/lib/invoice-utils';
 import { Printer, Download, X, Check, ShieldCheck, Building2, Phone, Mail } from 'lucide-react';
 
+import { DEFAULT_BANK_DETAILS } from '@/lib/bank-details';
+
 interface TaxInvoiceViewProps {
   invoice: InvoiceItem;
   onClose?: () => void;
@@ -22,17 +24,19 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
   const bankDetails: InvoiceBankDetails = React.useMemo(() => {
     try {
       if (invoice.bankDetailsJson) {
-        return JSON.parse(invoice.bankDetailsJson);
+        const parsed = JSON.parse(invoice.bankDetailsJson);
+        return {
+          ...DEFAULT_BANK_DETAILS,
+          ...parsed,
+          accountType: parsed.accountType || 'Current Account',
+          branch: parsed.branch && !parsed.branch.includes('Mohali')
+            ? parsed.branch
+            : DEFAULT_BANK_DETAILS.branch,
+          branchCode: parsed.branchCode || DEFAULT_BANK_DETAILS.branchCode,
+        };
       }
     } catch {}
-    return {
-      accountHolderName: 'CODEKAPS DIGITAL INNOVATIONS PVT LTD',
-      bankName: 'HDFC Bank Ltd',
-      accountNo: '50200112201868',
-      ifscCode: 'HDFC0002684',
-      branch: 'Mohali, Punjab',
-      outstandingAmount: 0.0,
-    };
+    return DEFAULT_BANK_DETAILS;
   }, [invoice.bankDetailsJson]);
 
   const paymentDetails = React.useMemo(() => {
@@ -310,20 +314,28 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
             <div className="col-span-7 p-3 border-r border-slate-900 space-y-1 text-[11px]">
               <span className="font-black uppercase text-slate-900 block mb-1">Bank Details</span>
               <div className="text-slate-800">
-                <span className="font-bold">A/C Holder Name: </span>
-                {bankDetails.accountHolderName}
+                <span className="font-bold">Bank Name: </span>
+                <span className="font-extrabold">{bankDetails.bankName || 'HDFC Bank Ltd'}</span>
               </div>
               <div className="text-slate-800">
-                <span className="font-bold">Bank Name: </span>
-                {bankDetails.bankName}
+                <span className="font-bold">A/C Holder Name: </span>
+                <span>{bankDetails.accountHolderName || 'CODEKAPS DIGITAL INNOVATIONS PVT LTD'}</span>
               </div>
               <div className="text-slate-800">
                 <span className="font-bold">A/C No: </span>
-                <span className="font-mono font-bold">{bankDetails.accountNo}</span>
+                <span className="font-mono font-black">{bankDetails.accountNo || '50200112201868'}</span>
               </div>
               <div className="text-slate-800">
                 <span className="font-bold">IFSC Code: </span>
-                <span className="font-mono font-bold">{bankDetails.ifscCode}</span>
+                <span className="font-mono font-black">{bankDetails.ifscCode || 'HDFC0002684'}</span>
+              </div>
+              <div className="text-slate-800">
+                <span className="font-bold">Account Type: </span>
+                <span className="font-bold text-blue-900">{bankDetails.accountType || 'Current Account'}</span>
+              </div>
+              <div className="text-slate-800">
+                <span className="font-bold">Branch: </span>
+                <span className="text-[10px] text-slate-700">{bankDetails.branch || 'Neelam Cinema Road, Gandhi Chowk, Munger - 811201, Bihar'}</span>
               </div>
               <div className="text-slate-600 pt-1 text-[10px] flex items-center justify-between border-t border-slate-200 mt-1">
                 <span>Outstanding Amt:</span>

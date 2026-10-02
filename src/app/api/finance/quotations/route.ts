@@ -5,12 +5,7 @@ import { ensureSeedData } from '@/lib/seed';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const DEFAULT_BANK_DETAILS = {
-  bankName: 'HDFC Bank Ltd',
-  accountNo: '50200112201868',
-  ifscCode: 'HDFC0002684',
-  accountHolderName: 'CODEKAPS DIGITAL INNOVATIONS PVT LTD',
-};
+import { DEFAULT_BANK_DETAILS } from '@/lib/bank-details';
 
 const DEFAULT_TERMS = `1. Monthly services are billed in advance per cycle.
 2. CGI/Walkthrough charges are payable in advance before execution.
@@ -148,7 +143,28 @@ async function seedDefaultQuotationsIfEmpty() {
 export async function GET(req: Request) {
   try {
     await ensureSeedData();
-    await seedDefaultQuotationsIfEmpty();
+
+    const { searchParams } = new URL(req.url);
+    if (searchParams.get('nextNumber') === 'true') {
+      const allQuotations = await prisma.quotation.findMany({
+        select: { quotationNumber: true },
+      });
+      let maxNum = 0;
+      for (const q of allQuotations) {
+        const match = q.quotationNumber.match(/(\d+)/);
+        if (match) {
+          const n = parseInt(match[1], 10);
+          if (n > maxNum) maxNum = n;
+        }
+      }
+      const nextNumPart = String(maxNum + 1).padStart(4, '0');
+      return NextResponse.json({
+        prefix: 'Q',
+        nextNumPart,
+        suffix: '',
+        nextQuotationNumber: `Q${nextNumPart}`,
+      });
+    }
 
     const quotations = await prisma.quotation.findMany({
       orderBy: { createdAt: 'desc' },
@@ -195,11 +211,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Customer name is required.' }, { status: 400 });
     }
 
-    let finalQNumber = customQNumber;
-    if (!finalQNumber) {
-      const count = await prisma.quotation.count();
-      const numStr = String(count + 1).padStart(4, '0');
-      finalQNumber = `${prefix}${numStr}${suffix}`;
+    // Determine quotation number safely avoiding unique collisions
+    const allQuotations = await prisma.quotation.findMany({ select: { quotationNumber: true } });
+    let maxNum = 0;
+    for (const q of allQuotations) {
+      const match = q.quotationNumber.match(/(\d+)/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    const nextAutoNum = `${prefix}${String(maxNum + 1).padStart(4, '0')}${suffix}`;
+
+    let finalQNumber = customQNumber ? customQNumber.trim() : '';
+    if (finalQNumber) {
+      const existing = await prisma.quotation.findUnique({
+        where: { quotationNumber: finalQNumber },
+      });
+      if (existing) {
+        finalQNumber = nextAutoNum;
+      }
+    } else {
+      finalQNumber = nextAutoNum;
     }
 
     let subtotal = 0;
@@ -268,6 +301,14 @@ export async function POST(req: Request) {
       roundOff = Number((grandTotal - totalBeforeExtra).toFixed(2));
     }
 
+    const effectiveBankDetails = {
+      ...DEFAULT_BANK_DETAILS,
+      ...(typeof bankDetails === 'object' && bankDetails !== null ? bankDetails : {}),
+      accountType: 'Current Account',
+      branch: 'Neelam Cinema Road, Gandhi Chowk, Munger - 811201, Bihar',
+      branchCode: '02684',
+    };
+
     const created = await prisma.quotation.create({
       data: {
         quotationNumber: finalQNumber,
@@ -298,7 +339,7 @@ export async function POST(req: Request) {
         currency: 'INR',
         status,
         notes: notes?.trim() || null,
-        bankDetails: JSON.stringify(bankDetails),
+        bankDetails: JSON.stringify(effectiveBankDetails),
         terms: terms?.trim() || DEFAULT_TERMS,
       },
     });

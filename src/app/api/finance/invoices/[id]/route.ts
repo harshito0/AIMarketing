@@ -112,6 +112,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   try {
     await ensureSeedData();
     const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const permanent = searchParams.get('permanent') === 'true';
 
     const existing = await prisma.invoice.findFirst({
       where: {
@@ -123,11 +125,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 });
     }
 
-    await prisma.invoice.delete({
-      where: { id: existing.id },
-    });
-
-    return NextResponse.json({ success: true, message: 'Invoice deleted successfully.' });
+    if (permanent) {
+      await prisma.invoice.delete({
+        where: { id: existing.id },
+      });
+      return NextResponse.json({ success: true, permanent: true, message: 'Invoice permanently deleted.' });
+    } else {
+      const updated = await prisma.invoice.update({
+        where: { id: existing.id },
+        data: { status: 'DELETED' },
+      });
+      return NextResponse.json({ success: true, permanent: false, invoice: updated, message: 'Invoice moved to Deleted section.' });
+    }
   } catch (error: any) {
     console.error('[Invoice DELETE Error]:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -670,7 +670,9 @@ export interface InvoiceBankDetails {
   bankName: string;
   accountNo: string;
   ifscCode: string;
+  accountType?: string;
   branch?: string;
+  branchCode?: string;
   outstandingAmount?: number;
 }
 

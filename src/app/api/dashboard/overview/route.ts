@@ -35,7 +35,7 @@ export async function GET(req: Request) {
       prisma.lead.count({ where: { status: 'WON' } }).catch(() => 0),
       prisma.task.count({ where: { status: { notIn: ['COMPLETED', 'CANCELLED'] } } }).catch(() => 0),
       prisma.user.count().catch(() => 0),
-      prisma.invoice.findMany({ select: { totalAmount: true, amountPaid: true, balanceDue: true, status: true } }).catch(() => []),
+      prisma.invoice.findMany({ where: { status: { not: 'DELETED' } }, select: { totalAmount: true, amountPaid: true, balanceDue: true, status: true } }).catch(() => []),
       prisma.expense.findMany({ select: { amount: true } }).catch(() => []),
       prisma.project.findMany({ take: 5, orderBy: { updatedAt: 'desc' } }).catch(() => []),
       prisma.task.findMany({ take: 6, orderBy: { createdAt: 'desc' } }).catch(() => []),

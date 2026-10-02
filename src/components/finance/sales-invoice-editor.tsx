@@ -9,6 +9,7 @@ import {
   InvoiceBankDetails,
   SundryDebtorCustomer,
 } from '@/lib/types';
+import { DEFAULT_BANK_DETAILS } from '@/lib/bank-details';
 import { formatINR, formatINRPlain } from '@/lib/invoice-utils';
 import { TaxInvoiceView } from './tax-invoice-view';
 import { NewCustomerDrawer } from './new-customer-drawer';
@@ -125,38 +126,31 @@ const PRESET_SERVICES = [
 export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesInvoiceEditorProps) {
   const router = useRouter();
 
-  // Invoice Meta
-  const [customerName, setCustomerName] = useState(
-    initialInvoice?.clientName || 'M.S.I. GROUP OF INSTITUTE'
-  );
+  // Customer & Meta
+  const [customerName, setCustomerName] = useState(initialInvoice?.clientName || '');
+  const [customerGstin, setCustomerGstin] = useState(initialInvoice?.clientGstin || '');
   const [customerBalance, setCustomerBalance] = useState('₹0.00 Cr');
   const [seriesName, setSeriesName] = useState(initialInvoice?.seriesName || 'Sales Invoice');
   const [invoicePrefix, setInvoicePrefix] = useState(initialInvoice?.invoicePrefix || 'INV');
   const [invoiceNumPart, setInvoiceNumPart] = useState(
     initialInvoice?.invoiceNumber
       ? initialInvoice.invoiceNumber.replace(/^[A-Za-z]+-?/, '')
-      : '0001'
+      : ''
   );
   const [invoiceSuffix, setInvoiceSuffix] = useState(initialInvoice?.invoiceSuffix || '');
   const [invoiceDate, setInvoiceDate] = useState(
-    initialInvoice?.date || '2026-04-28'
+    initialInvoice?.date || new Date().toISOString().split('T')[0]
   );
   const [dueDate, setDueDate] = useState(
-    initialInvoice?.dueDate || '2026-05-13'
+    initialInvoice?.dueDate || new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0]
   );
   const [bookName, setBookName] = useState(initialInvoice?.bookName || 'Sales Taxable');
-  const [billingAddress, setBillingAddress] = useState(
-    initialInvoice?.billingAddress ||
-      'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307\nGSTIN: 03AEQPE9376K2ZY'
-  );
+  const [billingAddress, setBillingAddress] = useState(initialInvoice?.billingAddress || '');
   const [shippingAddress, setShippingAddress] = useState(
-    initialInvoice?.shippingAddress ||
-      'M.S.I. GROUP OF INSTITUTE (GSTIN: 03AEQPE9376K2ZY)\nSCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307'
+    initialInvoice?.shippingAddress || initialInvoice?.billingAddress || ''
   );
-  const [placeOfSupplyChecked, setPlaceOfSupplyChecked] = useState(false);
-  const [placeOfSupply, setPlaceOfSupply] = useState(
-    initialInvoice?.placeOfSupply || 'PUNJAB (03)'
-  );
+  const [placeOfSupplyChecked, setPlaceOfSupplyChecked] = useState(Boolean(initialInvoice?.placeOfSupply));
+  const [placeOfSupply, setPlaceOfSupply] = useState(initialInvoice?.placeOfSupply || '');
 
   // Custom Fields
   const [quotationNo, setQuotationNo] = useState(initialInvoice?.quotationNo || '');
@@ -168,84 +162,22 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     vehicleNo: '',
   });
 
-  // Items List (Initialized exactly to match Sample Screenshot 1 & 2)
-  const defaultItems: InvoiceLineItem[] = [
-    {
-      srNo: 1,
-      desc: 'Social Media Management',
-      hsn: '998314',
-      qty: 1,
-      unit: 'MTH',
-      rate: 3200,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 3200,
-      gstRate: 18,
-      gstAmount: 576,
-      totalAmount: 3776.0,
-    },
-    {
-      srNo: 2,
-      desc: 'Content Creation',
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 4200,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 4200,
-      gstRate: 18,
-      gstAmount: 756,
-      totalAmount: 4956.0,
-    },
-    {
-      srNo: 3,
-      desc: 'Google Ads Management (Search Campaigns)',
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 1800,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 1800,
-      gstRate: 18,
-      gstAmount: 324,
-      totalAmount: 2124.0,
-    },
-    {
-      srNo: 4,
-      desc: 'Google My Business Optimization',
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 1200.01,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 1200.01,
-      gstRate: 18,
-      gstAmount: 216.0,
-      totalAmount: 1416.01,
-    },
-    {
-      srNo: 5,
-      desc: 'PR & Brand Promotion (Basic)',
-      hsn: '998397',
-      qty: 1,
-      unit: 'MTH',
-      rate: 2311.86,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 2311.86,
-      gstRate: 18,
-      gstAmount: 416.13,
-      totalAmount: 2727.99,
-    },
-  ];
+  const emptyLineItem: InvoiceLineItem = {
+    srNo: 1,
+    desc: '',
+    deliverables: [],
+    hsn: '998314',
+    qty: 1,
+    unit: 'MTH',
+    rate: 0,
+    rateType: 'EXCLUSIVE_GST',
+    discountPercent: 0,
+    discountAmount: 0,
+    taxableAmount: 0,
+    gstRate: 18,
+    gstAmount: 0,
+    totalAmount: 0,
+  };
 
   const [items, setItems] = useState<InvoiceLineItem[]>(() => {
     if (initialInvoice?.itemsJson) {
@@ -254,7 +186,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch {}
     }
-    return defaultItems;
+    return [emptyLineItem];
   });
 
   // Rates & Taxes Mode
@@ -265,11 +197,11 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
 
   // Discount & Charges
   const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
-  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountValue, setDiscountValue] = useState<number>(initialInvoice?.discountValue || 0);
   const [serviceCharge, setServiceCharge] = useState<number>(initialInvoice?.serviceCharge || 0);
-  const [showServiceCharge, setShowServiceCharge] = useState(false);
+  const [showServiceCharge, setShowServiceCharge] = useState(Boolean(initialInvoice?.serviceCharge));
   const [otherCharges, setOtherCharges] = useState<number>(initialInvoice?.otherCharges || 0);
-  const [showOtherCharges, setShowOtherCharges] = useState(false);
+  const [showOtherCharges, setShowOtherCharges] = useState(Boolean(initialInvoice?.otherCharges));
   const [discountAfterTaxType, setDiscountAfterTaxType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [discountAfterTaxValue, setDiscountAfterTaxValue] = useState<number>(0);
   const [autoRoundOff, setAutoRoundOff] = useState(true);
@@ -277,21 +209,102 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   // Special Notes & Attachments
   const [specialNotes, setSpecialNotes] = useState(initialInvoice?.notes || '');
   const [wantAdditionalDetails, setWantAdditionalDetails] = useState(false);
-  const [bankAccount, setBankAccount] = useState('CODEKAP');
+  const [bankAccount, setBankAccount] = useState('HDFC');
 
   // Payment Received
-  const [isPaymentReceived, setIsPaymentReceived] = useState<boolean>(
-    initialInvoice ? (initialInvoice.status === 'RECEIVED' || initialInvoice.status === 'PAID') : true
-  );
-  const [payments, setPayments] = useState<PaymentRow[]>([
-    {
-      id: 'pay_1',
-      mode: 'IMPS',
-      refNo: 'AD/0102',
-      depositTo: 'CODEKAP',
-      amount: 15000.0,
-    },
-  ]);
+  const [isPaymentReceived, setIsPaymentReceived] = useState<boolean>(() => {
+    if (!initialInvoice) return false;
+    return initialInvoice.status === 'RECEIVED' || initialInvoice.status === 'PAID';
+  });
+
+  const [payments, setPayments] = useState<PaymentRow[]>(() => {
+    if (initialInvoice?.paymentDetailsJson) {
+      try {
+        const parsed = JSON.parse(initialInvoice.paymentDetailsJson);
+        if (Array.isArray(parsed.payments) && parsed.payments.length > 0) {
+          return parsed.payments;
+        }
+        if (parsed.amount) {
+          return [
+            {
+              id: 'pay_1',
+              mode: parsed.paymentMode || initialInvoice.paymentMethod || 'IMPS',
+              refNo: parsed.refNo || '',
+              depositTo: parsed.depositTo || 'HDFC Bank',
+              amount: Number(parsed.amount) || 0,
+            },
+          ];
+        }
+      } catch {}
+    }
+    if (initialInvoice && (initialInvoice.status === 'RECEIVED' || initialInvoice.status === 'PAID')) {
+      return [
+        {
+          id: 'pay_1',
+          mode: initialInvoice.paymentMethod || 'IMPS',
+          refNo: '',
+          depositTo: 'HDFC Bank',
+          amount: initialInvoice.amountPaid || initialInvoice.totalAmount || 0,
+        },
+      ];
+    }
+    return [
+      {
+        id: 'pay_1',
+        mode: 'IMPS',
+        refNo: '',
+        depositTo: 'HDFC Bank',
+        amount: 0,
+      },
+    ];
+  });
+
+  // Fetch next invoice number if creating new invoice
+  useEffect(() => {
+    if (!initialInvoice) {
+      fetch('/api/finance/invoices?nextNumber=true')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.nextNumPart) {
+            setInvoiceNumPart(data.nextNumPart);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialInvoice]);
+
+  // Sync state if initialInvoice arrives or updates
+  useEffect(() => {
+    if (initialInvoice) {
+      if (initialInvoice.clientName) setCustomerName(initialInvoice.clientName);
+      if (initialInvoice.clientGstin) setCustomerGstin(initialInvoice.clientGstin);
+      if (initialInvoice.invoiceNumber) {
+        setInvoiceNumPart(initialInvoice.invoiceNumber.replace(/^[A-Za-z]+-?/, ''));
+      }
+      if (initialInvoice.seriesName) setSeriesName(initialInvoice.seriesName);
+      if (initialInvoice.invoicePrefix) setInvoicePrefix(initialInvoice.invoicePrefix);
+      if (initialInvoice.invoiceSuffix !== undefined) setInvoiceSuffix(initialInvoice.invoiceSuffix || '');
+      if (initialInvoice.date) setInvoiceDate(initialInvoice.date);
+      if (initialInvoice.dueDate) setDueDate(initialInvoice.dueDate);
+      if (initialInvoice.bookName) setBookName(initialInvoice.bookName);
+      if (initialInvoice.billingAddress) setBillingAddress(initialInvoice.billingAddress);
+      if (initialInvoice.shippingAddress) setShippingAddress(initialInvoice.shippingAddress);
+      if (initialInvoice.placeOfSupply) {
+        setPlaceOfSupply(initialInvoice.placeOfSupply);
+        setPlaceOfSupplyChecked(true);
+      }
+      if (initialInvoice.quotationNo) setQuotationNo(initialInvoice.quotationNo);
+      if (initialInvoice.notes) setSpecialNotes(initialInvoice.notes);
+      if (initialInvoice.itemsJson) {
+        try {
+          const parsed = JSON.parse(initialInvoice.itemsJson);
+          if (Array.isArray(parsed) && parsed.length > 0) setItems(parsed);
+        } catch {}
+      }
+      const isPaid = initialInvoice.status === 'RECEIVED' || initialInvoice.status === 'PAID';
+      setIsPaymentReceived(isPaid);
+    }
+  }, [initialInvoice]);
 
   // Modals & Drawers state
   const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
@@ -348,6 +361,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     const found = customerList.find((c) => c.accountDisplayName === cName || c.legalName === cName);
     if (found) {
       setCustomerBalance(found.balanceFormatted || '₹0.00 Cr');
+      setCustomerGstin(found.gstin || '');
       const gstinLine = found.gstin ? `\nGSTIN: ${found.gstin}` : (found.panItTanNo ? `\nPAN: ${found.panItTanNo}` : '');
       const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode]
         .filter(Boolean)
@@ -362,6 +376,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const handleCustomerSaved = (newCust: SundryDebtorCustomer) => {
     setCustomerList((prev) => [newCust, ...prev]);
     setCustomerName(newCust.accountDisplayName);
+    setCustomerGstin(newCust.gstin || '');
     setCustomerBalance(newCust.balanceFormatted || '₹0.00 Cr');
     const gstinLine = newCust.gstin ? `\nGSTIN: ${newCust.gstin}` : (newCust.panItTanNo ? `\nPAN: ${newCust.panItTanNo}` : '');
     const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode]
@@ -510,7 +525,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     dueDate,
     clientId: initialInvoice?.clientId || `cli_${Date.now()}`,
     clientName: customerName,
-    clientGstin: customerName.includes('M.S.I.') ? '03AEQPE9376K2ZY' : null,
+    clientGstin: customerGstin?.trim() || null,
     billingAddress,
     shippingAddress,
     quotationNo: quotationNo || null,
@@ -533,14 +548,7 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     currency: 'INR',
     status: isPaymentReceived ? 'RECEIVED' : 'DRAFT',
     paymentMethod: payments[0]?.mode || 'IMPS',
-    bankDetailsJson: JSON.stringify({
-      accountHolderName: 'CODEKAPS DIGITAL INNOVATIONS PVT LTD',
-      bankName: 'HDFC Bank Ltd',
-      accountNo: '50200112201868',
-      ifscCode: 'HDFC0002684',
-      branch: 'Mohali, Punjab',
-      outstandingAmount: 0.0,
-    }),
+    bankDetailsJson: JSON.stringify(DEFAULT_BANK_DETAILS),
     paymentDetailsJson: isPaymentReceived
       ? JSON.stringify({
           isReceived: true,
@@ -853,20 +861,32 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
+
+            {/* Customer GSTIN / PAN */}
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Customer GSTIN / Tax ID</label>
+              <input
+                type="text"
+                value={customerGstin}
+                onChange={(e) => setCustomerGstin(e.target.value)}
+                placeholder="e.g. 03AEQPE9376K2ZY"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+              />
+            </div>
           </div>
 
-          {/* Addresses Grid matching Screenshot 1 */}
+          {/* Addresses Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             {/* Billing Address */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700 block">Billing Address</label>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 leading-relaxed min-h-[90px]">
-                {billingAddress.split('\n').map((line, idx) => (
-                  <p key={idx} className={line.startsWith('GSTIN:') ? 'font-bold text-slate-800 mt-1' : ''}>
-                    {line}
-                  </p>
-                ))}
-              </div>
+              <textarea
+                rows={3}
+                value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)}
+                placeholder="Enter complete billing address and GSTIN..."
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-800 leading-relaxed focus:bg-white focus:border-blue-600 focus:outline-none resize-none font-sans"
+              />
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -884,6 +904,7 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                     type="text"
                     value={placeOfSupply}
                     onChange={(e) => setPlaceOfSupply(e.target.value)}
+                    placeholder="e.g. PUNJAB (03)"
                     className="ml-2 px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-xs font-medium text-slate-800 w-36"
                   />
                 )}
@@ -910,11 +931,13 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                   </button>
                 </div>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-700 leading-relaxed min-h-[90px]">
-                {shippingAddress.split('\n').map((line, idx) => (
-                  <p key={idx}>{line}</p>
-                ))}
-              </div>
+              <textarea
+                rows={3}
+                value={shippingAddress}
+                onChange={(e) => setShippingAddress(e.target.value)}
+                placeholder="Enter shipping address (optional)..."
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal text-slate-800 leading-relaxed focus:bg-white focus:border-blue-600 focus:outline-none resize-none font-sans"
+              />
             </div>
           </div>
         </div>
@@ -1262,21 +1285,37 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
           {/* Center Column: Bank Details & Payment Received (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             {/* Bank Details Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2">
-              <div className="flex items-center gap-1">
-                <h3 className="text-xs font-bold text-slate-800">Bank Details</h3>
-                <HelpCircle className="w-3 h-3 text-slate-400" />
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Bank Details (Printed on Invoice)</span>
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Current A/C
+                </span>
               </div>
-              <div className="relative">
-                <select
-                  value={bankAccount}
-                  onChange={(e) => setBankAccount(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none appearance-none"
-                >
-                  <option value="CODEKAP">CODEKAP</option>
-                  <option value="HDFC">HDFC Bank Ltd — 50200112201868</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-[11px] text-slate-700">
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">Bank:</span>
+                  <span className="font-bold text-slate-900">{DEFAULT_BANK_DETAILS.bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">A/C No:</span>
+                  <span className="font-mono font-bold text-slate-900">{DEFAULT_BANK_DETAILS.accountNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">IFSC Code:</span>
+                  <span className="font-mono font-bold text-slate-900">{DEFAULT_BANK_DETAILS.ifscCode}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-semibold text-slate-500">Account Type:</span>
+                  <span className="font-bold text-blue-700">{DEFAULT_BANK_DETAILS.accountType}</span>
+                </div>
+                <div className="pt-1 text-[10px] text-slate-500 border-t border-slate-200 mt-1">
+                  <span>Branch: </span>
+                  <span className="text-slate-800">{DEFAULT_BANK_DETAILS.branch}</span>
+                </div>
               </div>
             </div>
 

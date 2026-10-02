@@ -104,6 +104,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   try {
     await ensureSeedData();
     const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const permanent = searchParams.get('permanent') === 'true';
 
     const existing = await prisma.quotation.findFirst({
       where: {
@@ -115,11 +117,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: 'Quotation not found.' }, { status: 404 });
     }
 
-    await prisma.quotation.delete({
-      where: { id: existing.id },
-    });
-
-    return NextResponse.json({ success: true, message: 'Quotation deleted successfully.' });
+    if (permanent) {
+      await prisma.quotation.delete({
+        where: { id: existing.id },
+      });
+      return NextResponse.json({ success: true, permanent: true, message: 'Quotation permanently deleted.' });
+    } else {
+      const updated = await prisma.quotation.update({
+        where: { id: existing.id },
+        data: { status: 'DELETED' },
+      });
+      return NextResponse.json({ success: true, permanent: false, quotation: updated, message: 'Quotation moved to Deleted section.' });
+    }
   } catch (error: any) {
     console.error('[Quotation DELETE Error]:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -545,57 +545,6 @@ export async function ensureSeedData() {
       }).catch(() => null);
     }
 
-    // Ensure Harshit Singh (Lead Architect / Developer)
-    const existingHarshit = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: 'harshitsingh19622@gmail.com' },
-          { id: 'usr_harshit' }
-        ]
-      }
-    });
-    if (!existingHarshit) {
-      await prisma.user.create({
-        data: {
-          id: 'usr_harshit',
-          name: 'Harshit Singh',
-          email: 'harshitsingh19622@gmail.com',
-          role: 'TEAM_MEMBER',
-          title: 'Lead Architect / Senior Engineer',
-          department: 'Development',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit',
-        }
-      });
-    } else if (!existingHarshit.department || existingHarshit.department !== 'Development') {
-      await prisma.user.update({
-        where: { id: existingHarshit.id },
-        data: { department: 'Development' }
-      }).catch(() => null);
-    }
-
-    // Ensure Pooja Sharma (Social Media / Digital Marketing Specialist)
-    const existingPooja = await prisma.user.findFirst({
-      where: { email: 'pooja.sharma@codekap.com' }
-    });
-    if (!existingPooja) {
-      await prisma.user.create({
-        data: {
-          id: 'usr_pooja',
-          name: 'Pooja Sharma',
-          email: 'pooja.sharma@codekap.com',
-          role: 'TEAM_MEMBER',
-          title: 'Social Media & Performance Strategist',
-          department: 'Digital Marketing',
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=pooja',
-        }
-      });
-    } else if (!existingPooja.department) {
-      await prisma.user.update({
-        where: { id: existingPooja.id },
-        data: { department: 'Digital Marketing' }
-      }).catch(() => null);
-    }
-
     // 2. Ensure Active Super Admin Passcode (AGENT-7788)
     const existingInvite = await prisma.invitation.findFirst({
       where: { passcode: 'AGENT-7788' },

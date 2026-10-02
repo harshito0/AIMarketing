@@ -5,6 +5,9 @@ import { QuotationItem, QuotationLineItem } from '@/lib/types';
 import { formatINR, formatINRPlain, numberToIndianWords } from '@/lib/invoice-utils';
 import { Printer, X } from 'lucide-react';
 
+import { DEFAULT_BANK_DETAILS } from '@/lib/bank-details';
+import { InvoiceBankDetails } from '@/lib/types';
+
 interface QuotationViewProps {
   quotation: QuotationItem;
   onClose?: () => void;
@@ -19,17 +22,22 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
     }
   }, [quotation.itemsJson]);
 
-  const bankDetails = React.useMemo(() => {
+  const bankDetails: InvoiceBankDetails = React.useMemo(() => {
     try {
       if (quotation.bankDetails) {
-        return JSON.parse(quotation.bankDetails);
+        const parsed = JSON.parse(quotation.bankDetails);
+        return {
+          ...DEFAULT_BANK_DETAILS,
+          ...parsed,
+          accountType: parsed.accountType || 'Current Account',
+          branch: parsed.branch && !parsed.branch.includes('Mohali')
+            ? parsed.branch
+            : DEFAULT_BANK_DETAILS.branch,
+          branchCode: parsed.branchCode || DEFAULT_BANK_DETAILS.branchCode,
+        };
       }
     } catch {}
-    return {
-      bankName: 'HDFC Bank Ltd',
-      accountNo: '50200112201868',
-      ifscCode: 'HDFC0002684',
-    };
+    return DEFAULT_BANK_DETAILS;
   }, [quotation.bankDetails]);
 
   const termsList = React.useMemo(() => {
@@ -274,10 +282,14 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
           <div className="grid grid-cols-12 border border-slate-900">
             {/* Left: Bank Details */}
             <div className="col-span-6 p-3 border-r border-slate-900 space-y-1 text-[10px]">
-              <span className="font-bold text-slate-900 block mb-0.5">Bank Details</span>
+              <span className="font-bold text-slate-900 block mb-0.5 uppercase">Bank Details</span>
               <div className="text-slate-800">
                 <span className="font-medium">Bank Name: </span>
                 <span className="font-bold">{bankDetails.bankName || 'HDFC Bank Ltd'}</span>
+              </div>
+              <div className="text-slate-800">
+                <span className="font-medium">A/C Holder Name: </span>
+                <span className="font-bold">{bankDetails.accountHolderName || 'CODEKAPS DIGITAL INNOVATIONS PVT LTD'}</span>
               </div>
               <div className="text-slate-800">
                 <span className="font-medium">A/C No: </span>
@@ -286,6 +298,14 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
               <div className="text-slate-800">
                 <span className="font-medium">IFSC Code: </span>
                 <span className="font-mono font-bold">{bankDetails.ifscCode || 'HDFC0002684'}</span>
+              </div>
+              <div className="text-slate-800">
+                <span className="font-medium">Account Type: </span>
+                <span className="font-bold text-purple-900">{bankDetails.accountType || 'Current Account'}</span>
+              </div>
+              <div className="text-slate-800">
+                <span className="font-medium">Branch: </span>
+                <span className="text-[9.5px] text-slate-700">{bankDetails.branch || 'Neelam Cinema Road, Gandhi Chowk, Munger - 811201, Bihar'}</span>
               </div>
             </div>
 

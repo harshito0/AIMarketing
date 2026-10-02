@@ -26,6 +26,7 @@ import {
   Building2,
   Layers,
   Eye,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function InvoicesPage() {
@@ -55,11 +56,47 @@ export default function InvoicesPage() {
     fetchInvoices();
   }, []);
 
+  // Soft Delete (Moves to Deleted section)
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    if (!confirm('Move this invoice to Deleted / Trash section? (You can restore it later)')) return;
     try {
       const res = await fetch(`/api/finance/invoices/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setInvoices((prev) =>
+          prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DELETED' } : inv))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Restore from Deleted section back to active DRAFT
+  const handleRestore = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/finance/invoices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DRAFT' }),
+      });
+      if (res.ok) {
+        setInvoices((prev) =>
+          prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DRAFT' } : inv))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Permanently Delete from Database
+  const handlePermanentDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('WARNING: Are you sure you want to PERMANENTLY delete this invoice? This cannot be undone and will never reappear on refresh.')) return;
+    try {
+      const res = await fetch(`/api/finance/invoices/${id}?permanent=true`, { method: 'DELETE' });
       if (res.ok) {
         setInvoices((prev) => prev.filter((inv) => inv.id !== id && inv.invoiceNumber !== id));
       }
@@ -68,11 +105,16 @@ export default function InvoicesPage() {
     }
   };
 
-  const filtered = invoices.filter((inv) => {
+  const activeInvoices = invoices.filter((inv) => (inv.status || '').toUpperCase() !== 'DELETED');
+  const deletedInvoices = invoices.filter((inv) => (inv.status || '').toUpperCase() === 'DELETED');
+
+  const filtered = (statusFilter === 'DELETED' ? deletedInvoices : activeInvoices).filter((inv) => {
     const matchSearch =
       inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
       inv.clientName.toLowerCase().includes(search.toLowerCase()) ||
       (inv.clientGstin && inv.clientGstin.toLowerCase().includes(search.toLowerCase()));
+
+    if (statusFilter === 'DELETED') return matchSearch;
 
     const st = (inv.status || 'DRAFT').toUpperCase();
     const matchStatus =
@@ -84,15 +126,15 @@ export default function InvoicesPage() {
     return matchSearch && matchStatus;
   });
 
-  // Analytics Metrics
-  const totalBilled = invoices.reduce((acc, inv) => acc + (inv.totalAmount || 0), 0);
-  const totalReceived = invoices.reduce(
+  // Analytics Metrics (Calculated ONLY from active invoices, deleted excluded!)
+  const totalBilled = activeInvoices.reduce((acc, inv) => acc + (inv.totalAmount || 0), 0);
+  const totalReceived = activeInvoices.reduce(
     (acc, inv) =>
       acc + (inv.status === 'RECEIVED' || inv.status === 'PAID' ? inv.totalAmount : inv.amountPaid || 0),
     0
   );
   const totalPending = Math.max(0, totalBilled - totalReceived);
-  const totalTax = invoices.reduce((acc, inv) => acc + ((inv.cgst || 0) + (inv.sgst || 0) + (inv.igst || 0)), 0);
+  const totalTax = activeInvoices.reduce((acc, inv) => acc + ((inv.cgst || 0) + (inv.sgst || 0) + (inv.igst || 0)), 0);
 
   return (
     <AuthGuard>
@@ -173,22 +215,58 @@ export default function InvoicesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 self-start sm:self-center">
-            {['ALL', 'RECEIVED', 'SENT', 'DRAFT'].map((tab) => (
+          <div className="flex items-center gap-1.5 self-start sm:self-center flex-wrap">
+            {[
+              { id: 'ALL', label: `Active (${activeInvoices.length})` },
+              { id: 'RECEIVED', label: 'Received' },
+              { id: 'SENT', label: 'Sent' },
+              { id: 'DRAFT', label: 'Draft' },
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === tab
+                  statusFilter === tab.id
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'DELETED' ? 'ALL' : 'DELETED')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ml-2 ${
+                statusFilter === 'DELETED'
+                  ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-600/30'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Deleted ({deletedInvoices.length})</span>
+            </button>
           </div>
         </div>
+
+        {statusFilter === 'DELETED' && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-900">
+            <div className="flex items-center gap-2.5">
+              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                <strong>Deleted Section (Trash):</strong> Invoices here are hidden from the active dashboard and revenue totals. Click <strong>Restore</strong> or <strong>Edit</strong> (saving puts it back to active), or <strong>Delete Forever</strong> to permanently remove from the database.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('ALL')}
+              className="text-xs font-bold text-rose-700 hover:underline shrink-0"
+            >
+              Back to Active Invoices →
+            </button>
+          </div>
+        )}
 
         {/* Invoices Directory Table */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden card-lift">
@@ -277,58 +355,100 @@ export default function InvoicesPage() {
                         </td>
 
                         <td className="py-3.5 px-3 text-center">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                              isReceived
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : st === 'SENT'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {isReceived ? 'Received' : inv.status}
-                          </span>
+                          {st === 'DELETED' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">
+                              Deleted (Trash)
+                            </span>
+                          ) : (
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                isReceived
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : st === 'SENT'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {isReceived ? 'Received' : inv.status}
+                            </span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedInvoiceForPrint(inv)}
-                              className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
-                              title="View Tax Invoice Preview"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-blue-600" />
-                              <span>View</span>
-                            </button>
+                            {st === 'DELETED' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRestore(inv.id, e)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Restore to Active Invoices"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Restore</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/finance/invoices/edit/${inv.id}`)}
-                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
-                              title="Edit Sales Invoice"
-                            >
-                              <Edit className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Edit</span>
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/finance/invoices/edit/${inv.id}`)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Edit & Save into Active List"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Edit</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setSelectedInvoiceForPrint(inv)}
-                              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer btn-press"
-                              title="Print / Save PDF"
-                            >
-                              <Printer className="w-3.5 h-3.5 text-amber-600" />
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handlePermanentDelete(inv.id, e)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Delete Permanently from Database"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Delete Forever</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedInvoiceForPrint(inv)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="View Tax Invoice Preview"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>View</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={(e) => handleDelete(inv.id, e)}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Delete Invoice"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/finance/invoices/edit/${inv.id}`)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Edit Sales Invoice"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Edit</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedInvoiceForPrint(inv)}
+                                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer btn-press"
+                                  title="Print / Save PDF"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-amber-600" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDelete(inv.id, e)}
+                                  className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Move to Deleted Section"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -54,19 +54,6 @@ export default function AdminTeamPage() {
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       title: 'Super Admin / Founder & CEO',
     },
-    {
-      uid: 'usr_harshit',
-      name: 'Harshit Singh',
-      email: 'harshitsingh19622@gmail.com',
-      username: 'harshitsingh19622',
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshitsingh19622@gmail.com',
-      title: 'Lead Architect / Admin',
-    },
   ];
 
   const [users, setUsers] = useState<UserProfile[]>([]);

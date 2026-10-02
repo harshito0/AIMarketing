@@ -21,6 +21,7 @@ import {
   DollarSign,
   ArrowRight,
   Eye,
+  RotateCcw,
 } from 'lucide-react';
 
 export default function QuotationsPage() {
@@ -50,11 +51,47 @@ export default function QuotationsPage() {
     fetchQuotations();
   }, []);
 
+  // Soft Delete (Moves to Deleted section)
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this quotation?')) return;
+    if (!confirm('Move this quotation to Deleted / Trash section? (You can restore it later)')) return;
     try {
       const res = await fetch(`/api/finance/quotations/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setQuotations((prev) =>
+          prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DELETED' } : q))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Restore from Deleted section back to active DRAFT
+  const handleRestore = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/finance/quotations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DRAFT' }),
+      });
+      if (res.ok) {
+        setQuotations((prev) =>
+          prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DRAFT' } : q))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Permanently Delete from Database
+  const handlePermanentDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('WARNING: Are you sure you want to PERMANENTLY delete this quotation? This cannot be undone and will never reappear on refresh.')) return;
+    try {
+      const res = await fetch(`/api/finance/quotations/${id}?permanent=true`, { method: 'DELETE' });
       if (res.ok) {
         setQuotations((prev) => prev.filter((q) => q.id !== id && q.quotationNumber !== id));
       }
@@ -63,11 +100,16 @@ export default function QuotationsPage() {
     }
   };
 
-  const filtered = quotations.filter((q) => {
+  const activeQuotations = quotations.filter((q) => (q.status || '').toUpperCase() !== 'DELETED');
+  const deletedQuotations = quotations.filter((q) => (q.status || '').toUpperCase() === 'DELETED');
+
+  const filtered = (statusFilter === 'DELETED' ? deletedQuotations : activeQuotations).filter((q) => {
     const matchSearch =
       q.quotationNumber.toLowerCase().includes(search.toLowerCase()) ||
       q.clientName.toLowerCase().includes(search.toLowerCase()) ||
       (q.clientGstin && q.clientGstin.toLowerCase().includes(search.toLowerCase()));
+
+    if (statusFilter === 'DELETED') return matchSearch;
 
     const st = (q.status || 'DRAFT').toUpperCase();
     const matchStatus =
@@ -79,12 +121,12 @@ export default function QuotationsPage() {
     return matchSearch && matchStatus;
   });
 
-  const totalQuoted = quotations.reduce((acc, q) => acc + (q.totalAmount || 0), 0);
-  const acceptedValue = quotations
+  const totalQuoted = activeQuotations.reduce((acc, q) => acc + (q.totalAmount || 0), 0);
+  const acceptedValue = activeQuotations
     .filter((q) => (q.status || 'DRAFT').toUpperCase() === 'ACCEPTED')
     .reduce((acc, q) => acc + (q.totalAmount || 0), 0);
   const pendingValue = totalQuoted - acceptedValue;
-  const avgDeal = quotations.length > 0 ? totalQuoted / quotations.length : 0;
+  const avgDeal = activeQuotations.length > 0 ? totalQuoted / activeQuotations.length : 0;
 
   return (
     <AuthGuard>
@@ -165,22 +207,58 @@ export default function QuotationsPage() {
             />
           </div>
 
-          <div className="flex items-center gap-1.5 self-start sm:self-center">
-            {['ALL', 'SENT', 'ACCEPTED', 'DRAFT'].map((tab) => (
+          <div className="flex items-center gap-1.5 self-start sm:self-center flex-wrap">
+            {[
+              { id: 'ALL', label: `Active (${activeQuotations.length})` },
+              { id: 'ACCEPTED', label: 'Accepted' },
+              { id: 'SENT', label: 'Sent' },
+              { id: 'DRAFT', label: 'Draft' },
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  statusFilter === tab
+                  statusFilter === tab.id
                     ? 'bg-slate-900 text-white shadow-xs'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             ))}
+
+            <button
+              type="button"
+              onClick={() => setStatusFilter(statusFilter === 'DELETED' ? 'ALL' : 'DELETED')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ml-2 ${
+                statusFilter === 'DELETED'
+                  ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-600/30'
+                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Deleted ({deletedQuotations.length})</span>
+            </button>
           </div>
         </div>
+
+        {statusFilter === 'DELETED' && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-900">
+            <div className="flex items-center gap-2.5">
+              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>
+                <strong>Deleted Section (Trash):</strong> Quotations here are hidden from the active list. Click <strong>Restore</strong> or <strong>Edit</strong> (saving puts it back to active), or <strong>Delete Forever</strong> to permanently remove from the database.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('ALL')}
+              className="text-xs font-bold text-rose-700 hover:underline shrink-0"
+            >
+              Back to Active Quotations →
+            </button>
+          </div>
+        )}
 
         {/* Quotations Table */}
         <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden card-lift">
@@ -269,58 +347,100 @@ export default function QuotationsPage() {
                         </td>
 
                         <td className="py-3.5 px-3 text-center">
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                              isAccepted
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : st === 'SENT'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {q.status}
-                          </span>
+                          {st === 'DELETED' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">
+                              Deleted (Trash)
+                            </span>
+                          ) : (
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                isAccepted
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : st === 'SENT'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {q.status}
+                            </span>
+                          )}
                         </td>
 
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedQuotationForPrint(q)}
-                              className="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
-                              title="View Quotation Preview"
-                            >
-                              <Eye className="w-3.5 h-3.5 text-purple-600" />
-                              <span>View</span>
-                            </button>
+                            {st === 'DELETED' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleRestore(q.id, e)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Restore to Active Quotations"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Restore</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/finance/quotations/edit/${q.id}`)}
-                              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
-                              title="Edit Quotation"
-                            >
-                              <Edit className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Edit</span>
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/finance/quotations/edit/${q.id}`)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Edit & Save into Active List"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Edit</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={() => setSelectedQuotationForPrint(q)}
-                              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer btn-press"
-                              title="Print / Save PDF"
-                            >
-                              <Printer className="w-3.5 h-3.5 text-amber-600" />
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handlePermanentDelete(q.id, e)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Delete Permanently from Database"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Delete Forever</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedQuotationForPrint(q)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="View Quotation Preview"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-purple-600" />
+                                  <span>View</span>
+                                </button>
 
-                            <button
-                              type="button"
-                              onClick={(e) => handleDelete(q.id, e)}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Delete Quotation"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/finance/quotations/edit/${q.id}`)}
+                                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1 shadow-2xs transition-colors cursor-pointer btn-press"
+                                  title="Edit Quotation"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Edit</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedQuotationForPrint(q)}
+                                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-amber-600 transition-colors cursor-pointer btn-press"
+                                  title="Print / Save PDF"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-amber-600" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDelete(q.id, e)}
+                                  className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Move to Deleted Section"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

@@ -8,19 +8,43 @@ import { DollarSign, Receipt, TrendingUp, AlertCircle, ArrowUpRight, Plus, FileT
 
 export default function FinanceOverviewPage() {
   const [stats, setStats] = useState({
-    revenue: 1250000,
-    collected: 980000,
-    outstanding: 270000,
-    expenses: 185000,
-    surplus: 1065000,
+    revenue: 0,
+    collected: 0,
+    outstanding: 0,
+    expenses: 0,
+    surplus: 0,
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFinanceData() {
+      try {
+        const res = await fetch('/api/dashboard/overview');
+        if (res.ok) {
+          const data = await res.json();
+          setStats({
+            revenue: data.revenue || 0,
+            collected: data.collections || 0,
+            outstanding: data.outstanding || 0,
+            expenses: data.expenses || 0,
+            surplus: data.operatingSurplus || 0,
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load finance data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFinanceData();
+  }, []);
 
   const formatINR = (val: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0,
-    }).format(val);
+    }).format(val || 0);
   };
 
   return (

@@ -131,8 +131,10 @@ export default function QuotationsPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        {/* Quotations Page Content (Hidden when printing quotation) */}
+        <div className={selectedQuotationForPrint ? 'print:hidden' : ''}>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
               <FileText className="w-6 h-6 text-purple-600" />
@@ -451,8 +453,9 @@ export default function QuotationsPage() {
             </table>
           </div>
         </div>
+      </div>
 
-        {/* Quotation Fullscreen Print Preview Modal */}
+      {/* Quotation Fullscreen Print Preview Modal */}
         {selectedQuotationForPrint && (
           <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 animate-fade-in flex flex-col items-center print:static print:bg-white print:p-0 print:m-0 print:overflow-visible print:block print:w-full print:backdrop-blur-none">
             <div className="max-w-4xl w-full print:max-w-none print:w-full print:m-0 print:p-0">

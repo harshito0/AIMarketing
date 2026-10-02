@@ -138,6 +138,12 @@
     display: none !important;
   }
 
+  /* Isolate print sheets: hide everything in main that does not contain the sheet */
+  body:has(#tax-invoice-sheet) main > *:not(:has(#tax-invoice-sheet)),
+  body:has(#quotation-sheet) main > *:not(:has(#quotation-sheet)) {
+    display: none !important;
+  }
+
   /* Neutralize modal overlays and backdrops */
   .fixed,
   [class*="backdrop-blur"],

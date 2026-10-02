@@ -158,7 +158,7 @@ export function QuotationView({ quotation, onClose }: QuotationViewProps) {
                 Email: info@codekap.in
               </p>
               <p className="text-[10px] text-slate-700">
-                Phone no.: 7528835379 / 917528835379
+                Phone no.: +91 75288 35379
               </p>
             </div>
           </div>

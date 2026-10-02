@@ -51,7 +51,17 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
   const totalDiscount = items.reduce((acc, it) => acc + (it.discountAmount || 0), 0) + (invoice.discountAmount || 0);
   const totalTaxable = invoice.taxableAmount || invoice.subtotal;
   const totalTax = (invoice.cgst || 0) + (invoice.sgst || 0) + (invoice.igst || 0);
-  const amountInWords = numberToIndianWords(invoice.totalAmount);
+  const totalAmount = Number(invoice.totalAmount || 0);
+  const amountInWords = numberToIndianWords(totalAmount);
+
+  // Payment status and outstanding calculation
+  const isPaidStatus = invoice.status === 'PAID' || invoice.status === 'RECEIVED';
+  const amountPaid = isPaidStatus
+    ? (typeof invoice.amountPaid === 'number' && invoice.amountPaid > 0 ? invoice.amountPaid : totalAmount)
+    : Number(invoice.amountPaid || 0);
+  const outstandingAmt = typeof invoice.balanceDue === 'number' && !isNaN(invoice.balanceDue)
+    ? (isPaidStatus ? 0 : invoice.balanceDue)
+    : Math.max(0, Number((totalAmount - amountPaid).toFixed(2)));
 
   // Group items by HSN for GST summary table
   const hsnMap: Record<string, { taxable: number; igstRate: number; igstAmt: number; cgstRate: number; cgstAmt: number; sgstRate: number; sgstAmt: number }> = {};
@@ -175,7 +185,7 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
                   <span className="font-semibold">Email:</span> info@codekap.in
                 </p>
                 <p className="text-[11px] text-slate-700">
-                  <span className="font-semibold">Phone no.:</span> 7528835379 / 917528835379
+                  <span className="font-semibold">Phone no.:</span> +91 75288 35379
                 </p>
                 <p className="text-[11px] text-slate-900 font-bold font-mono">
                   <span>GSTIN: </span>03AAMCC6345B1Z0
@@ -195,7 +205,11 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
               </div>
               <div className="p-2 flex flex-col justify-center">
                 <span className="font-bold text-slate-600 block mb-0.5">Due date</span>
-                <span className="font-bold text-slate-900">{invoice.dueDate}</span>
+                <span className="font-bold text-slate-900">
+                  {invoice.dueDate && invoice.dueDate >= (invoice.date || '')
+                    ? invoice.dueDate
+                    : new Date(new Date(invoice.date || Date.now()).getTime() + 15 * 86400000).toISOString().split('T')[0]}
+                </span>
               </div>
             </div>
           </div>
@@ -339,7 +353,9 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
               </div>
               <div className="text-slate-600 pt-1 text-[10px] flex items-center justify-between border-t border-slate-200 mt-1">
                 <span>Outstanding Amt:</span>
-                <span className="font-bold font-mono">₹0.00 Cr</span>
+                <span className={`font-bold font-mono ${outstandingAmt > 0 ? 'text-amber-950 font-black' : 'text-slate-700'}`}>
+                  ₹{formatINRPlain(outstandingAmt)}
+                </span>
               </div>
             </div>
 
@@ -352,12 +368,26 @@ export function TaxInvoiceView({ invoice, onClose }: TaxInvoiceViewProps) {
                 </div>
                 <div className="flex justify-between text-slate-950 font-black text-xs pt-1 border-t border-slate-300">
                   <span>Total Amount(₹):</span>
-                  <span className="font-mono">{formatINRPlain(invoice.totalAmount)}</span>
+                  <span className="font-mono">{formatINRPlain(totalAmount)}</span>
                 </div>
-                <div className="flex justify-between text-emerald-800 font-bold">
-                  <span>Received Amount(₹):</span>
-                  <span className="font-mono">{formatINRPlain(invoice.amountPaid || invoice.totalAmount)}</span>
-                </div>
+                {amountPaid > 0 && (
+                  <div className="flex justify-between text-emerald-800 font-bold">
+                    <span>Received Amount(₹):</span>
+                    <span className="font-mono">{formatINRPlain(amountPaid)}</span>
+                  </div>
+                )}
+                {amountPaid > 0 && outstandingAmt > 0 && (
+                  <div className="flex justify-between text-amber-900 font-bold">
+                    <span>Balance Due(₹):</span>
+                    <span className="font-mono">{formatINRPlain(outstandingAmt)}</span>
+                  </div>
+                )}
+                {amountPaid === 0 && (
+                  <div className="flex justify-between text-slate-900 font-bold">
+                    <span>Balance Due(₹):</span>
+                    <span className="font-mono">{formatINRPlain(outstandingAmt)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-900">

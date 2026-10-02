@@ -454,8 +454,8 @@ export default function QuotationsPage() {
 
         {/* Quotation Fullscreen Print Preview Modal */}
         {selectedQuotationForPrint && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 animate-fade-in flex flex-col items-center">
-            <div className="max-w-4xl w-full">
+          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 animate-fade-in flex flex-col items-center print:static print:bg-white print:p-0 print:m-0 print:overflow-visible print:block print:w-full print:backdrop-blur-none">
+            <div className="max-w-4xl w-full print:max-w-none print:w-full print:m-0 print:p-0">
               <QuotationView
                 quotation={selectedQuotationForPrint}
                 onClose={() => setSelectedQuotationForPrint(null)}

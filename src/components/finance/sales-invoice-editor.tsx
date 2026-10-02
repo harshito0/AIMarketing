@@ -141,9 +141,29 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
   const [invoiceDate, setInvoiceDate] = useState(
     initialInvoice?.date || new Date().toISOString().split('T')[0]
   );
-  const [dueDate, setDueDate] = useState(
-    initialInvoice?.dueDate || new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0]
-  );
+  const [dueDate, setDueDate] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const defaultDue = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
+    if (!initialInvoice) return defaultDue;
+    const invDate = initialInvoice.date || today;
+    if (initialInvoice.dueDate && initialInvoice.dueDate >= invDate) {
+      return initialInvoice.dueDate;
+    }
+    const d = new Date(invDate);
+    d.setDate(d.getDate() + 15);
+    return isNaN(d.getTime()) ? defaultDue : d.toISOString().split('T')[0];
+  });
+
+  const handleInvoiceDateChange = (val: string) => {
+    setInvoiceDate(val);
+    if (val) {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        d.setDate(d.getDate() + 15);
+        setDueDate(d.toISOString().split('T')[0]);
+      }
+    }
+  };
   const [bookName, setBookName] = useState(initialInvoice?.bookName || 'Sales Taxable');
   const [billingAddress, setBillingAddress] = useState(initialInvoice?.billingAddress || '');
   const [shippingAddress, setShippingAddress] = useState(
@@ -285,7 +305,15 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
       if (initialInvoice.invoicePrefix) setInvoicePrefix(initialInvoice.invoicePrefix);
       if (initialInvoice.invoiceSuffix !== undefined) setInvoiceSuffix(initialInvoice.invoiceSuffix || '');
       if (initialInvoice.date) setInvoiceDate(initialInvoice.date);
-      if (initialInvoice.dueDate) setDueDate(initialInvoice.dueDate);
+      if (initialInvoice.dueDate) {
+        if (initialInvoice.date && initialInvoice.dueDate < initialInvoice.date) {
+          const d = new Date(initialInvoice.date);
+          d.setDate(d.getDate() + 15);
+          setDueDate(!isNaN(d.getTime()) ? d.toISOString().split('T')[0] : initialInvoice.dueDate);
+        } else {
+          setDueDate(initialInvoice.dueDate);
+        }
+      }
       if (initialInvoice.bookName) setBookName(initialInvoice.bookName);
       if (initialInvoice.billingAddress) setBillingAddress(initialInvoice.billingAddress);
       if (initialInvoice.shippingAddress) setShippingAddress(initialInvoice.shippingAddress);
@@ -753,7 +781,7 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
           <h2 className="text-xs font-bold text-slate-800">Customer Info.</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             {/* Customer Dropdown with Pencil Icon */}
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-1">
@@ -837,7 +865,23 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
                 <input
                   type="date"
                   value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  onChange={(e) => handleInvoiceDateChange(e.target.value)}
+                  className="w-full pl-3 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Due Date */}
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Due Date<span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dueDate}
+                  min={invoiceDate}
+                  onChange={(e) => setDueDate(e.target.value)}
                   className="w-full pl-3 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
@@ -1672,8 +1716,8 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
 
       {/* Tax Invoice Fullscreen Preview & Print Modal */}
       {showPreviewModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 animate-fade-in flex flex-col items-center">
-          <div className="max-w-4xl w-full">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm overflow-y-auto p-4 sm:p-8 animate-fade-in flex flex-col items-center print:static print:bg-white print:p-0 print:m-0 print:overflow-visible print:block print:w-full print:backdrop-blur-none">
+          <div className="max-w-4xl w-full print:max-w-none print:w-full print:m-0 print:p-0">
             <TaxInvoiceView
               invoice={currentInvoiceData}
               onClose={() => setShowPreviewModal(false)}

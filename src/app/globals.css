@@ -107,34 +107,81 @@
   }
 }
 
-/* Print Stylesheet for Tax Invoice & PDF Generation */
+/* Print Stylesheet for Tax Invoice & Quotation PDF Generation */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 6mm;
+    margin: 6mm 6mm;
   }
 
+  html,
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Ensure background colors and borders print faithfully */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Prevent page breaks inside tables and summary blocks */
-  table, tr, td, th {
-    page-break-inside: avoid;
-  }
-
+  /* Hide app navigation and non-printable elements */
+  header,
+  nav,
+  aside,
+  footer,
+  .topbar,
+  .sidebar,
   .print\:hidden {
     display: none !important;
   }
+
+  /* Neutralize modal overlays and backdrops */
+  .fixed,
+  [class*="backdrop-blur"],
+  [class*="bg-slate-950"] {
+    position: static !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+  }
+
+  /* Exact A4 Invoice and Quotation sheet layout */
+  #tax-invoice-sheet,
+  #quotation-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 2mm 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  /* Ensure colors and borders print crisp and clear */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    text-shadow: none !important;
+  }
+
+  /* Avoid unwanted page breaks */
+  table,
+  tr,
+  td,
+  th,
+  .border-slate-900 {
+    page-break-inside: avoid;
+  }
 }
+
 
 

@@ -241,6 +241,13 @@ export default function DashboardPage() {
                   <RefreshCw className={`w-4 h-4 transition-transform duration-300 ${refreshing ? 'animate-spin text-blue-600' : ''}`} />
                 </button>
                 <Link
+                  href="/admin/team"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-xs shadow-purple-600/20 transition-all duration-200 btn-press"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Invite & Passcode</span>
+                </Link>
+                <Link
                   href="/crm/leads"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all duration-200 btn-press"
                 >

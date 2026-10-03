@@ -251,55 +251,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fallback for dev / demo mode accounts: Fetch persistent DB profile
+      // Check if user is Super Admin
       const initialAdminEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
-      const isInitialAdmin = lowerInput === initialAdminEmail || lowerInput.includes('aman');
-      const isHarshit = lowerInput.includes('harshit');
-      const isPooja = lowerInput.includes('pooja');
-      const isSales = lowerInput.includes('sales') || lowerInput.includes('rahul');
+      const isInitialAdmin = lowerInput === initialAdminEmail || lowerInput === 'aman' || lowerInput === 'usr_aman';
 
-      const targetUid = isInitialAdmin ? 'usr_aman' : isHarshit ? 'usr_harshit' : isPooja ? 'usr_pooja' : `usr_${Date.now().toString(36)}`;
+      if (isInitialAdmin) {
+        let adminProf: UserProfile = { ...DEFAULT_DEV_ADMIN };
+        try {
+          const profRes = await fetch('/api/profile', {
+            headers: {
+              'X-User-Id': 'usr_aman',
+              'X-User-Email': 'aman@codekap.com',
+              'X-User-Role': 'ADMIN',
+            },
+          });
+          if (profRes.ok) {
+            const dbData = await profRes.json();
+            if (dbData && !dbData.error && dbData.name) {
+              adminProf = { ...adminProf, ...dbData };
+            }
+          }
+        } catch {}
 
-      let devProf: UserProfile = {
-        ...DEFAULT_DEV_ADMIN,
-        uid: targetUid,
-        name: isInitialAdmin ? 'Aman Sir' : isHarshit ? 'Harshit Singh' : isPooja ? 'Pooja Sharma' : isSales ? 'Sales Specialist' : (lowerInput.split('@')[0] || 'Team Member'),
-        email: emailToUse.includes('@') ? emailToUse : `${lowerInput}@codekap.com`,
-        username: lowerInput.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || 'user',
-        role: isInitialAdmin ? 'ADMIN' : 'TEAM_MEMBER',
-        department: isInitialAdmin ? 'Administration & Management' : isHarshit ? 'Development' : isPooja ? 'Digital Marketing' : isSales ? 'Sales & Business Development' : 'Development',
-        title: isInitialAdmin ? 'Founder & CEO' : isHarshit ? 'Lead Architect / Senior Engineer' : isPooja ? 'Social Media & Performance Strategist' : isSales ? 'Sales Executive' : 'Team Member',
-        avatar: isHarshit
-          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit'
-          : isPooja
-          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=pooja'
-          : undefined,
-        emailVerified: true,
-      };
+        setProfile(adminProf);
+        try {
+          localStorage.setItem('agent_ai_user_session', JSON.stringify(adminProf));
+        } catch {}
+        setLoading(false);
+        return { success: true };
+      }
 
-      // Retrieve actual database record to load custom avatar and custom name
+      // Non-Super Admin: Check if account exists among registered members who joined via passcode
       try {
-        const profRes = await fetch('/api/profile', {
-          headers: {
-            'X-User-Id': targetUid,
-            'X-User-Email': devProf.email,
-            'X-User-Role': devProf.role,
-          },
-        });
-        if (profRes.ok) {
-          const dbData = await profRes.json();
-          if (dbData && !dbData.error && dbData.name) {
-            devProf = { ...devProf, ...dbData };
+        const usersRes = await fetch('/api/users');
+        if (usersRes.ok) {
+          const registeredUsers: any[] = await usersRes.json();
+          const matchedUser = registeredUsers.find(
+            (u) =>
+              u.email?.toLowerCase() === lowerInput ||
+              u.username?.toLowerCase() === lowerInput ||
+              u.email?.toLowerCase() === emailToUse.toLowerCase()
+          );
+
+          if (matchedUser) {
+            const memberProfile: UserProfile = {
+              uid: matchedUser.uid,
+              name: matchedUser.name,
+              email: matchedUser.email,
+              username: matchedUser.username || matchedUser.email.split('@')[0],
+              role: matchedUser.role || 'TEAM_MEMBER',
+              status: matchedUser.status || 'ACTIVE',
+              emailVerified: true,
+              createdAt: matchedUser.createdAt,
+              updatedAt: matchedUser.updatedAt,
+              avatar: matchedUser.avatar,
+              title: matchedUser.title || 'Team Member',
+              department: matchedUser.department || 'Development',
+            };
+
+            setProfile(memberProfile);
+            try {
+              localStorage.setItem('agent_ai_user_session', JSON.stringify(memberProfile));
+            } catch {}
+            setLoading(false);
+            return { success: true };
           }
         }
-      } catch {}
+      } catch (checkErr) {
+        console.warn('[User Verification Note]:', checkErr);
+      }
 
-      setProfile(devProf);
-      try {
-        localStorage.setItem('agent_ai_user_session', JSON.stringify(devProf));
-      } catch {}
       setLoading(false);
-      return { success: true };
+      return {
+        success: false,
+        error: 'Access Denied: Only Super Admin and team members invited via official passcode can access this workspace. Please contact Super Admin to receive a workspace invite.',
+      };
     } catch (err: any) {
       console.error('[signIn Error]:', err);
       setLoading(false);

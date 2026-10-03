@@ -23,9 +23,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: authResult.error }, { status: authResult.statusCode || 403 });
     }
 
-    const invitations = await prisma.invitation.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    let invitations: any[] = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        invitations = await prisma.invitation.findMany({
+          orderBy: { createdAt: 'desc' },
+        });
+        break;
+      } catch (err: any) {
+        if (attempt === 2) throw err;
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      }
+    }
 
     return NextResponse.json(
       invitations.map((inv) => ({
@@ -38,9 +47,14 @@ export async function GET(req: Request) {
         message: inv.message || null,
         invitedBy: inv.invitedBy,
         invitedByName: inv.invitedByName,
-        expiresAt: inv.expiresAt.toISOString(),
-        createdAt: inv.createdAt.toISOString(),
-      }))
+        expiresAt: inv.expiresAt ? new Date(inv.expiresAt).toISOString() : new Date().toISOString(),
+        createdAt: inv.createdAt ? new Date(inv.createdAt).toISOString() : new Date().toISOString(),
+      })),
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        },
+      }
     );
   } catch (error: any) {
     console.error('[Invitations GET Error]:', error);
@@ -65,23 +79,51 @@ export async function POST(req: Request) {
 
     const targetEmail = email.toLowerCase().trim();
 
-    // Determine passcode immediately
+    // Determine unique passcode
     let passcode = (customPasscode || '').trim().toUpperCase();
     if (!passcode) {
-      passcode = generatePasscode();
+      for (let i = 0; i < 10; i++) {
+        const candidate = generatePasscode();
+        const exists = await prisma.invitation.findUnique({ where: { passcode: candidate } });
+        if (!exists) {
+          passcode = candidate;
+          break;
+        }
+      }
+      if (!passcode) {
+        passcode = `AGENT-${Math.floor(1000 + Math.random() * 9000)}`;
+      }
     }
 
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days expiration
 
+    // Revoke any previous pending invitations for this email
+    await prisma.invitation.updateMany({
+      where: { email: targetEmail, status: 'PENDING' },
+      data: { status: 'REVOKED' },
+    }).catch(() => null);
+
+    // Save invitation to SQLite database
     let createdInvite: any = null;
+    const existingWithPasscode = await prisma.invitation.findUnique({
+      where: { passcode },
+    });
 
-    try {
-      // Revoke any previous pending invitations for this email
-      await prisma.invitation.updateMany({
-        where: { email: targetEmail, status: 'PENDING' },
-        data: { status: 'REVOKED' },
-      }).catch(() => null);
-
+    if (existingWithPasscode) {
+      createdInvite = await prisma.invitation.update({
+        where: { id: existingWithPasscode.id },
+        data: {
+          email: targetEmail,
+          name: name ? name.trim() : null,
+          role: role as UserRole,
+          invitedBy: authResult.user.uid,
+          invitedByName: authResult.user.name || 'Super Admin',
+          status: 'PENDING',
+          message: message ? message.trim() : null,
+          expiresAt,
+        },
+      });
+    } else {
       createdInvite = await prisma.invitation.create({
         data: {
           email: targetEmail,
@@ -95,27 +137,14 @@ export async function POST(req: Request) {
           expiresAt,
         },
       });
-    } catch (dbErr: any) {
-      console.warn('[Invitations DB Fallback]:', dbErr?.message);
-      createdInvite = {
-        id: `inv_${Date.now()}`,
-        email: targetEmail,
-        name: name ? name.trim() : null,
-        role: role as UserRole,
-        passcode,
-        invitedBy: authResult.user.uid,
-        invitedByName: authResult.user.name || 'Super Admin',
-        status: 'PENDING',
-        expiresAt: expiresAt,
-        createdAt: new Date(),
-      };
     }
 
-    // Send invitation email via Gmail SMTP
+    // Build join URL
     const host = req.headers.get('host') || 'localhost:3000';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const invitationUrl = `${protocol}://${host}/signup?passcode=${encodeURIComponent(passcode)}&email=${encodeURIComponent(targetEmail)}`;
 
+    // Deliver email via Gmail SMTP
     let emailDelivered = false;
     let emailInfo = '';
     try {
@@ -132,25 +161,34 @@ export async function POST(req: Request) {
       emailInfo = emailRes.info || '';
     } catch (err: any) {
       console.warn('[Email Dispatch Warning]:', err?.message);
+      emailInfo = err?.message || 'Failed to dispatch email';
     }
 
-    return NextResponse.json({
-      success: true,
-      invitation: {
-        id: createdInvite.id,
-        email: createdInvite.email,
-        name: createdInvite.name,
-        role: createdInvite.role,
-        passcode: createdInvite.passcode,
-        status: createdInvite.status,
-        message: createdInvite.message || (message ? message.trim() : null),
-        expiresAt: createdInvite.expiresAt ? new Date(createdInvite.expiresAt).toISOString() : expiresAt.toISOString(),
+    return NextResponse.json(
+      {
+        success: true,
+        invitation: {
+          id: createdInvite.id,
+          email: createdInvite.email,
+          name: createdInvite.name,
+          role: createdInvite.role,
+          passcode: createdInvite.passcode,
+          status: createdInvite.status,
+          message: createdInvite.message || (message ? message.trim() : null),
+          expiresAt: createdInvite.expiresAt ? new Date(createdInvite.expiresAt).toISOString() : expiresAt.toISOString(),
+          createdAt: createdInvite.createdAt ? new Date(createdInvite.createdAt).toISOString() : new Date().toISOString(),
+        },
+        emailDelivered,
+        message: emailDelivered
+          ? `Invitation email & passcode successfully sent to ${targetEmail} via Gmail!`
+          : `Passcode [${passcode}] generated for ${targetEmail}. (Email notice: ${emailInfo || 'Delivery pending'})`,
       },
-      emailDelivered,
-      message: emailDelivered
-        ? `Invitation email & passcode delivered to ${targetEmail} inbox!`
-        : `Passcode [${passcode}] generated for ${targetEmail}.`,
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('[Invitations POST Error]:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

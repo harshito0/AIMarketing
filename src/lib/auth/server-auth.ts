@@ -52,8 +52,10 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
     }
   }
 
+  const devUserEmail = req.headers.get('X-User-Email') || req.headers.get('x-user-email');
+  const devUserRole = req.headers.get('X-User-Role') || req.headers.get('x-user-role');
   const lookupUid = decodedUid || devUserId || 'usr_aman';
-  const lookupEmail = decodedEmail || (lookupUid.includes('@') ? lookupUid : null);
+  const lookupEmail = decodedEmail || devUserEmail || (lookupUid.includes('@') ? lookupUid : null);
 
   let userProfile: UserProfile | null = null;
 
@@ -63,7 +65,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
     const conditions: any[] = [{ id: lookupUid }];
     if (lookupEmail) conditions.push({ email: lookupEmail });
     if (lookupUid.includes('@')) conditions.push({ email: lookupUid });
-    if (lookupUid === 'usr_aman') conditions.push({ email: 'aman@codekap.com' });
+    if (lookupUid === 'usr_aman' || devUserRole === 'ADMIN') conditions.push({ email: 'aman@codekap.com' });
 
     const dbUser = await prisma.user.findFirst({
       where: {
@@ -120,35 +122,31 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
     }
   }
 
-  // 3. Fallback for initial admin (Aman Sir / Harshit Singh)
+  // 3. Fallback for Super Admin (Aman Sir / aman@codekap.com)
   const initialAdminEmail = (process.env.INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
   const isAmanOrAdmin =
     lookupUid === 'usr_aman' ||
-    lookupUid === 'usr_harshit' ||
+    devUserRole === 'ADMIN' ||
     (lookupEmail && (
       lookupEmail.toLowerCase().trim() === initialAdminEmail ||
-      lookupEmail.toLowerCase().includes('aman') ||
-      lookupEmail.toLowerCase().includes('harshit')
+      lookupEmail.toLowerCase().includes('aman')
     ));
 
   if (!userProfile) {
     if (isAmanOrAdmin) {
-      const isHarshit = (lookupEmail && lookupEmail.includes('harshit')) || lookupUid === 'usr_harshit';
       userProfile = {
-        uid: lookupUid || (isHarshit ? 'usr_harshit' : 'usr_aman'),
-        name: decodedName || (isHarshit ? 'Harshit Singh' : 'Aman Sir'),
-        email: lookupEmail || (isHarshit ? 'harshitsingh19622@gmail.com' : 'aman@codekap.com'),
-        username: isHarshit ? 'harshitsingh19622' : 'aman',
-        role: isHarshit ? 'TEAM_MEMBER' : 'ADMIN',
+        uid: 'usr_aman',
+        name: 'Aman Sir',
+        email: 'aman@codekap.com',
+        username: 'aman',
+        role: 'ADMIN',
         status: 'ACTIVE',
         emailVerified: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        title: isHarshit ? 'Lead Architect / Senior Engineer' : 'Super Admin / Founder & CEO',
-        department: isHarshit ? 'Development' : 'Administration & Management',
-        avatar: isHarshit
-          ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit'
-          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        title: 'Super Admin / Founder & CEO',
+        department: 'Administration & Management',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       };
     } else {
       userProfile = {
@@ -156,7 +154,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         name: decodedName || (lookupEmail ? lookupEmail.split('@')[0] : 'Team Member'),
         email: lookupEmail || `${lookupUid}@codekap.com`,
         username: lookupEmail ? lookupEmail.split('@')[0] : lookupUid.substring(0, 8),
-        role: 'TEAM_MEMBER',
+        role: (devUserRole as UserRole) || 'TEAM_MEMBER',
         status: 'ACTIVE',
         emailVerified: true,
         createdAt: new Date().toISOString(),

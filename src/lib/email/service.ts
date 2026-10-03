@@ -18,52 +18,59 @@ export async function sendInvitationEmail(
 ): Promise<{ success: boolean; delivered: boolean; messageId?: string; info?: string }> {
   const smtpUser = process.env.SMTP_USER || 'harshitsingh19622@gmail.com';
   const smtpPass = process.env.SMTP_PASS || 'gbvqcaojszvhuvei';
-  const emailFrom = process.env.EMAIL_FROM || `Agent AI Marketing <${smtpUser}>`;
+  const emailFrom = process.env.EMAIL_FROM || `CodeKap OS <${smtpUser}>`;
 
   const { toEmail, role, invitedByName, passcode, invitationUrl, message } = params;
 
   const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; color: #0f172a;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 18px; background-color: #ffffff; color: #0f172a;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background-color: #2563eb; color: #ffffff; width: 52px; height: 52px; line-height: 52px; border-radius: 14px; font-weight: 800; font-size: 26px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">A</div>
-        <h2 style="color: #0f172a; margin-top: 14px; margin-bottom: 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">Agent AI Marketing</h2>
-        <p style="color: #64748b; font-size: 13px; margin-top: 0;">Super Admin Workspace Invitation</p>
+        <div style="display: inline-block; background: linear-block; background-color: #2563eb; color: #ffffff; width: 54px; height: 54px; line-height: 54px; border-radius: 16px; font-weight: 900; font-size: 26px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">C</div>
+        <h2 style="color: #0f172a; margin-top: 14px; margin-bottom: 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">CodeKap OS</h2>
+        <p style="color: #64748b; font-size: 13px; margin-top: 0; font-weight: 600;">Super Admin Workspace Invitation</p>
       </div>
 
-      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-        <h3 style="color: #1e293b; margin-top: 0; font-size: 16px;">You've been invited to join the team</h3>
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="color: #1e293b; margin-top: 0; font-size: 16px; font-weight: 700;">You've been invited to join CodeKap OS</h3>
         <p style="color: #334155; font-size: 14px; margin: 6px 0;"><strong>Invited by:</strong> ${invitedByName}</p>
-        <p style="color: #334155; font-size: 14px; margin: 6px 0;"><strong>Assigned Role:</strong> <span style="background-color: #dbeafe; color: #1e40af; padding: 3px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;">${role}</span></p>
-        <p style="color: #334155; font-size: 14px; margin: 6px 0;"><strong>Destination Email:</strong> ${toEmail}</p>
+        <p style="color: #334155; font-size: 14px; margin: 6px 0;"><strong>Assigned Role:</strong> <span style="background-color: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 6px; font-weight: bold; font-size: 12px;">${role}</span></p>
+        <p style="color: #334155; font-size: 14px; margin: 6px 0;"><strong>Recipient:</strong> ${toEmail}</p>
         ${message ? `<p style="color: #475569; font-size: 13px; font-style: italic; margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">"${message}"</p>` : ''}
       </div>
 
       ${passcode ? `
-      <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 18px; margin-bottom: 24px; text-align: center;">
-        <p style="color: #1e40af; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px 0;">Your Team Access Passcode</p>
-        <div style="font-family: monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: #1e3a8a; background: #ffffff; border: 1px solid #93c5fd; border-radius: 8px; padding: 10px; display: inline-block;">
+      <div style="background-color: #eff6ff; border: 2px dashed #93c5fd; border-radius: 14px; padding: 20px; margin-bottom: 24px; text-align: center;">
+        <p style="color: #1e40af; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px 0;">Your Official Team Access Passcode</p>
+        <div style="font-family: 'Courier New', Courier, monospace; font-size: 28px; font-weight: 900; letter-spacing: 4px; color: #1d4ed8; background: #ffffff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 20px; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
           ${passcode}
         </div>
-        <p style="color: #64748b; font-size: 11px; margin: 8px 0 0 0;">Enter this passcode on the sign-up page to activate your role.</p>
+        <p style="color: #64748b; font-size: 12px; margin: 10px 0 0 0; font-weight: 500;">Enter this passcode on the sign-up page or click the button below to join directly.</p>
       </div>
       ` : ''}
 
       <div style="text-align: center; margin-top: 24px; margin-bottom: 28px;">
-        <a href="${invitationUrl}" style="background-color: #2563eb; color: #ffffff; font-weight: bold; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 14px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);">
-          ACCEPT INVITATION & REGISTER
+        <a href="${invitationUrl}" style="background-color: #2563eb; color: #ffffff; font-weight: 800; text-decoration: none; padding: 15px 36px; border-radius: 12px; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);">
+          ACCEPT INVITATION & REGISTER →
         </a>
       </div>
 
-      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 28px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-        If you were not expecting this invitation, you can safely ignore this email.<br/>
-        Direct Link: <a href="${invitationUrl}" style="color: #2563eb; word-break: break-all;">${invitationUrl}</a>
+      <div style="background-color: #fafafa; border-radius: 10px; padding: 12px; text-align: center; margin-top: 20px;">
+        <p style="color: #64748b; font-size: 11px; margin: 0;">
+          Direct Join Link: <a href="${invitationUrl}" style="color: #2563eb; word-break: break-all; font-weight: 600;">${invitationUrl}</a>
+        </p>
+      </div>
+
+      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+        If you did not expect this invitation from CodeKap OS Super Admin, you can disregard this email.
       </p>
     </div>
   `;
 
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -73,7 +80,7 @@ export async function sendInvitationEmail(
     const info = await transporter.sendMail({
       from: emailFrom,
       to: toEmail,
-      subject: `You've been invited to Agent AI by ${invitedByName} [Passcode: ${passcode || 'INVITE'}]`,
+      subject: `CodeKap OS Workspace Invitation: You've been invited by ${invitedByName} [Passcode: ${passcode || 'INVITE'}]`,
       html: htmlContent,
     });
 

@@ -32,28 +32,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // If not found in DB, check standard/generated pattern fallback
-    if (!invite) {
-      if (rawClean.startsWith('AGENT') || /^[A-Z0-9_-]{4,12}$/i.test(rawClean)) {
-        invite = {
-          id: `inv_${Date.now()}`,
-          email: (email || 'member@codekap.com').toLowerCase().trim(),
-          name: 'Team Member',
-          role: 'TEAM_MEMBER',
-          department: null,
-          passcode: withHyphen,
-          tokenHash: null,
-          invitedBy: 'usr_aman',
-          invitedByName: 'Super Admin',
-          status: 'PENDING',
-          message: 'Welcome to Agent AI team',
-          expiresAt: new Date(Date.now() + 30 * 86400000),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-    }
-
     if (!invite) {
       return NextResponse.json(
         { error: 'Invalid invite passcode. Please verify the code with your Super Admin.' },

@@ -98,24 +98,6 @@ function SignInForm() {
     }
   };
 
-  const quickLoginAs = async (email: string, pass: string) => {
-    setIdentifier(email);
-    setPassword(pass);
-    setLoading(true);
-    setError('');
-    try {
-      const result = await signIn(email, pass);
-      if (result.success) {
-        router.push(redirectUrl);
-      } else {
-        setError(result.error || 'Quick login failed');
-        setLoading(false);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Quick login failed');
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="p-8 sm:p-10">
@@ -125,7 +107,7 @@ function SignInForm() {
       </div>
 
       {/* 1-Click Super Admin Access with 6-Digit Verification */}
-      <div className="mb-3 p-4 rounded-2xl bg-purple-50/80 border border-purple-200/90 flex items-center justify-between gap-3 shadow-2xs card-lift">
+      <div className="mb-6 p-4 rounded-2xl bg-purple-50/80 border border-purple-200/90 flex items-center justify-between gap-3 shadow-2xs card-lift">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-purple-600/20 shrink-0">
             <Shield className="w-4 h-4" />
@@ -149,43 +131,6 @@ function SignInForm() {
         >
           Super Admin →
         </button>
-      </div>
-
-      {/* Quick Role & Department Sign-In Presets */}
-      <div className="mb-6 p-3.5 rounded-2xl bg-slate-50/90 border border-slate-200">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">Test Department Access</span>
-          <span className="text-[10px] text-slate-500 font-bold bg-slate-200/70 px-2 py-0.5 rounded-full">1-Click Fast Login</span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => quickLoginAs('harshitsingh19622@gmail.com', 'password123')}
-            disabled={loading}
-            className="p-3 rounded-xl border border-blue-200 bg-white hover:bg-blue-50/60 text-left transition-all hover:scale-[1.01] cursor-pointer group shadow-2xs"
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-base">💻</span>
-              <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600">Developer</span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium truncate">Harshit • Development</p>
-            <p className="text-[9px] text-blue-600 font-bold mt-0.5">🚫 No Social / No Leads</p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => quickLoginAs('pooja.sharma@codekap.com', 'password123')}
-            disabled={loading}
-            className="p-3 rounded-xl border border-pink-200 bg-white hover:bg-pink-50/60 text-left transition-all hover:scale-[1.01] cursor-pointer group shadow-2xs"
-          >
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-base">📱</span>
-              <span className="text-xs font-bold text-slate-900 group-hover:text-pink-600">Social Media</span>
-            </div>
-            <p className="text-[10px] text-slate-500 font-medium truncate">Pooja • Marketing</p>
-            <p className="text-[9px] text-pink-600 font-bold mt-0.5">🚫 No GitHub / No Dev</p>
-          </button>
-        </div>
       </div>
 
       {urlMessage && (

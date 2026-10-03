@@ -57,7 +57,15 @@ export default function AdminTeamPage() {
   ];
 
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [invitations, setInvitations] = useState<InvitationItem[]>([]);
+  const [invitations, setInvitations] = useState<InvitationItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('codekap_cached_invitations');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -93,8 +101,12 @@ export default function AdminTeamPage() {
   const getAuthHeaders = async (includeJson = false): Promise<Record<string, string>> => {
     const token = await getIdToken();
     const effectiveUserId = authUser?.uid || profile?.uid || 'usr_aman';
+    const effectiveUserEmail = authUser?.email || profile?.email || 'aman@codekap.com';
+    const effectiveRole = profile?.role || 'ADMIN';
     const headers: Record<string, string> = {
       'X-User-Id': effectiveUserId,
+      'X-User-Email': effectiveUserEmail,
+      'X-User-Role': effectiveRole,
     };
     if (includeJson) {
       headers['Content-Type'] = 'application/json';
@@ -112,8 +124,8 @@ export default function AdminTeamPage() {
       const headers = await getAuthHeaders();
 
       const [usersRes, invRes] = await Promise.all([
-        fetch('/api/admin/users', { headers }),
-        fetch('/api/admin/invitations', { headers }),
+        fetch('/api/admin/users', { headers, cache: 'no-store' }),
+        fetch('/api/admin/invitations', { headers, cache: 'no-store' }),
       ]);
 
       let usersJson: any = null;
@@ -132,11 +144,24 @@ export default function AdminTeamPage() {
         invJson = text ? JSON.parse(text) : null;
       } catch {}
 
-      if (invRes.ok && invJson && Array.isArray(invJson) && invJson.length > 0) {
+      if (invRes.ok && invJson && Array.isArray(invJson)) {
         setInvitations(invJson);
+        try {
+          localStorage.setItem('codekap_cached_invitations', JSON.stringify(invJson));
+        } catch {}
+      } else {
+        // Fallback to localStorage cache if server returned empty or error
+        try {
+          const cached = localStorage.getItem('codekap_cached_invitations');
+          if (cached) setInvitations(JSON.parse(cached));
+        } catch {}
       }
     } catch (err: any) {
       console.warn('[AdminTeamPage fetchData note]: Using local fallback', err);
+      try {
+        const cached = localStorage.getItem('codekap_cached_invitations');
+        if (cached) setInvitations(JSON.parse(cached));
+      } catch {}
     } finally {
       setLoading(false);
     }
@@ -185,26 +210,34 @@ export default function AdminTeamPage() {
         }),
       });
 
-      let savedInvite = fallbackInvite;
+      const data = await res.json().catch(() => ({}));
 
-      if (res && res.ok) {
-        try {
-          const text = await res.text();
-          const data = text ? JSON.parse(text) : {};
-          if (data.invitation) {
-            savedInvite = data.invitation;
-          }
-        } catch {}
+      if (!res.ok) {
+        setError(data.error || 'Failed to create and dispatch invitation.');
+        return;
       }
 
+      const savedInvite = data.invitation || fallbackInvite;
       setGeneratedPasscodeResult(savedInvite);
-      setSuccessMessage(`Team invitation & passcode generated for ${inviteEmail}!`);
-      setInvitations((prev) => [savedInvite, ...prev.filter((i) => i.email !== savedInvite.email)]);
+      setSuccessMessage(data.message || `Team invitation & passcode generated for ${inviteEmail}!`);
+
+      setInvitations((prev) => {
+        const updated = [savedInvite, ...prev.filter((i) => i.email !== savedInvite.email && i.passcode !== savedInvite.passcode)];
+        try {
+          localStorage.setItem('codekap_cached_invitations', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+
+      // Clear input form
+      setInviteEmail('');
+      setInviteName('');
+      setInviteMessage('');
+      setCustomPasscode('');
       fetchData();
     } catch (err: any) {
-      setGeneratedPasscodeResult(fallbackInvite);
-      setSuccessMessage(`Team invitation & passcode generated for ${inviteEmail}!`);
-      setInvitations((prev) => [fallbackInvite, ...prev.filter((i) => i.email !== fallbackInvite.email)]);
+      console.error('[Send Invite Error]:', err);
+      setError(err.message || 'Network error sending invitation.');
     } finally {
       setInviting(false);
     }
@@ -251,8 +284,14 @@ export default function AdminTeamPage() {
     setError('');
     setSuccessMessage('');
 
-    // Immediately remove from UI state
-    setInvitations((prev) => prev.filter((i) => i.id !== invitationId && i.passcode !== invitationId));
+    // Immediately remove from UI state and update cache
+    setInvitations((prev) => {
+      const updated = prev.filter((i) => i.id !== invitationId && i.passcode !== invitationId);
+      try {
+        localStorage.setItem('codekap_cached_invitations', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     setSuccessMessage('Invitation passcode revoked successfully.');
 
     try {

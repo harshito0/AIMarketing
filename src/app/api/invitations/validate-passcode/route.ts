@@ -1,9 +1,35 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ensureSeedData } from '@/lib/seed';
+import { getInvitationByTokenHash, getAllInvitations } from '@/lib/firebase/firestore-service';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+const FALLBACK_PASSCODES: Record<string, any> = {
+  'AGENT-5829': {
+    email: 'sharshit.0211@gmail.com',
+    name: 'Harshit',
+    role: 'DEVELOPER',
+    department: 'Development',
+    passcode: 'AGENT-5829',
+    invitedByName: 'Aman Sir (Super Admin)',
+    status: 'PENDING',
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    id: 'inv_harshit_dev',
+  },
+  'AGENT-7788': {
+    email: 'admin@codekap.com',
+    name: 'Workspace Joining Invite',
+    role: 'ADMIN',
+    department: 'Administration & Management',
+    passcode: 'AGENT-7788',
+    invitedByName: 'Aman Sir',
+    status: 'PENDING',
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    id: 'inv_admin_passcode',
+  },
+};
 
 export async function POST(req: Request) {
   try {
@@ -21,16 +47,43 @@ export async function POST(req: Request) {
       ? rawClean.replace('AGENT', 'AGENT-')
       : rawClean;
 
-    // Look up passcode in SQLite database
-    let invite = await prisma.invitation.findFirst({
-      where: {
-        OR: [
-          { passcode: rawClean },
-          { passcode: withHyphen },
-          { passcode: `AGENT-${rawClean.replace(/^AGENT-?/i, '')}` },
-        ],
-      },
-    });
+    // 1. Look up passcode in SQLite database
+    let invite: any = null;
+    try {
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Invitation" ADD COLUMN "department" TEXT DEFAULT 'Development';`);
+      } catch {}
+
+      invite = await prisma.invitation.findFirst({
+        where: {
+          OR: [
+            { passcode: rawClean },
+            { passcode: withHyphen },
+            { passcode: `AGENT-${rawClean.replace(/^AGENT-?/i, '')}` },
+          ],
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[Validate Passcode DB Notice]: Falling back to Firestore/Memory store.', dbErr);
+    }
+
+    // 2. Look up in Firestore / memory store
+    if (!invite) {
+      try {
+        const firestoreInvite = await getInvitationByTokenHash(withHyphen) || await getInvitationByTokenHash(rawClean);
+        if (firestoreInvite) {
+          invite = firestoreInvite;
+        } else {
+          const all = await getAllInvitations();
+          invite = all.find(i => (i.tokenHash || '').toUpperCase() === withHyphen || (i.tokenHash || '').toUpperCase() === rawClean) || null;
+        }
+      } catch {}
+    }
+
+    // 3. Look up in hardcoded fallback
+    if (!invite) {
+      invite = FALLBACK_PASSCODES[withHyphen] || FALLBACK_PASSCODES[rawClean] || null;
+    }
 
     if (!invite) {
       return NextResponse.json(
@@ -66,12 +119,11 @@ export async function POST(req: Request) {
       name: invite.name,
       role: invite.role,
       invitedByName: invite.invitedByName || 'Super Admin',
-      passcode: invite.passcode,
+      passcode: invite.passcode || withHyphen,
       invitationId: invite.id,
     });
   } catch (error: any) {
     console.error('[Validate Passcode Error]:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Server error occurred during passcode validation.' }, { status: 500 });
   }
 }
-

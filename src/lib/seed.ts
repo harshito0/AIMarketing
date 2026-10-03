@@ -336,6 +336,7 @@ const SQLITE_INIT_TABLES = [
     "email" TEXT NOT NULL,
     "name" TEXT,
     "role" TEXT NOT NULL DEFAULT 'TEAM_MEMBER',
+    "department" TEXT DEFAULT 'Development',
     "passcode" TEXT NOT NULL,
     "tokenHash" TEXT,
     "invitedBy" TEXT,
@@ -551,25 +552,56 @@ export async function ensureSeedData() {
       }).catch(() => null);
     }
 
-    // 2. Ensure Active Super Admin Passcode (AGENT-7788)
-    const existingInvite = await prisma.invitation.findFirst({
-      where: { passcode: 'AGENT-7788' },
-    });
-    if (!existingInvite) {
-      const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
-      await prisma.invitation.create({
-        data: {
-          email: 'admin@codekap.com',
-          name: 'Workspace Joining Invite',
-          role: 'ADMIN',
-          passcode: 'AGENT-7788',
-          status: 'PENDING',
-          invitedBy: 'usr_aman',
-          invitedByName: 'Aman Sir',
-          message: 'Official joining passcode for Codekap marketing workspace.',
-          expiresAt,
+    // 2. Ensure Active Super Admin Passcode (AGENT-7788) & Developer Passcode (AGENT-5829)
+    try {
+      const existingInvite = await prisma.invitation.findFirst({
+        where: { passcode: 'AGENT-7788' },
+      });
+      if (!existingInvite) {
+        const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days
+        await prisma.invitation.create({
+          data: {
+            email: 'admin@codekap.com',
+            name: 'Workspace Joining Invite',
+            role: 'ADMIN',
+            department: 'Administration & Management',
+            passcode: 'AGENT-7788',
+            status: 'PENDING',
+            invitedBy: 'usr_aman',
+            invitedByName: 'Aman Sir',
+            message: 'Official joining passcode for Codekap marketing workspace.',
+            expiresAt,
+          },
+        });
+      }
+
+      const existingHarshitInvite = await prisma.invitation.findFirst({
+        where: {
+          OR: [
+            { passcode: 'AGENT-5829' },
+            { email: 'sharshit.0211@gmail.com' }
+          ]
         },
       });
+      if (!existingHarshitInvite) {
+        const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
+        await prisma.invitation.create({
+          data: {
+            email: 'sharshit.0211@gmail.com',
+            name: 'Harshit',
+            role: 'DEVELOPER',
+            department: 'Development',
+            passcode: 'AGENT-5829',
+            status: 'PENDING',
+            invitedBy: 'usr_aman',
+            invitedByName: 'Aman Sir (Super Admin)',
+            message: 'Welcome to CodeKap OS workspace! Use this passcode to register and activate your account.',
+            expiresAt,
+          },
+        });
+      }
+    } catch (inviteSeedErr) {
+      console.warn('[Seed Invites Warning]:', inviteSeedErr);
     }
 
     // 3. Ensure Core Departments

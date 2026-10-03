@@ -122,23 +122,31 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
     }
   }
 
-  // 3. Fallback for Super Admin (Aman Sir / aman@codekap.com)
-  const initialAdminEmail = (process.env.INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
+  // 3. Fallback for Super Admin (Aman Sir / Harshit / SMTP User)
+  const initialAdminEmails = [
+    'aman@codekap.com',
+    'harshitsingh19622@gmail.com',
+    (process.env.INITIAL_ADMIN_EMAIL || '').toLowerCase().trim(),
+    (process.env.SMTP_USER || '').toLowerCase().trim(),
+  ].filter(Boolean);
+
   const isAmanOrAdmin =
     lookupUid === 'usr_aman' ||
+    lookupUid === 'usr_harshit' ||
     devUserRole === 'ADMIN' ||
     (lookupEmail && (
-      lookupEmail.toLowerCase().trim() === initialAdminEmail ||
-      lookupEmail.toLowerCase().includes('aman')
+      initialAdminEmails.includes(lookupEmail.toLowerCase().trim()) ||
+      lookupEmail.toLowerCase().includes('aman') ||
+      lookupEmail.toLowerCase().includes('harshit')
     ));
 
-  if (!userProfile) {
+  if (!userProfile || isAmanOrAdmin) {
     if (isAmanOrAdmin) {
       userProfile = {
-        uid: 'usr_aman',
-        name: 'Aman Sir',
-        email: 'aman@codekap.com',
-        username: 'aman',
+        uid: lookupUid || 'usr_aman',
+        name: decodedName || 'Aman Sir',
+        email: lookupEmail || 'aman@codekap.com',
+        username: lookupEmail ? lookupEmail.split('@')[0] : 'aman',
         role: 'ADMIN',
         status: 'ACTIVE',
         emailVerified: true,

@@ -75,13 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (fbUser: FirebaseUser) => {
     try {
-      const initialAdminEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
-      const isInitialAdmin = fbUser.email && fbUser.email.toLowerCase().trim() === initialAdminEmail;
+      const initialAdminEmails = [
+        'aman@codekap.com',
+        'harshitsingh19622@gmail.com',
+        (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || '').toLowerCase().trim(),
+      ].filter(Boolean);
+      const isInitialAdmin = fbUser.email && initialAdminEmails.includes(fbUser.email.toLowerCase().trim());
       const defaultUsername = fbUser.email ? fbUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : fbUser.uid.substring(0, 8);
 
       const fastProfile: UserProfile = {
         uid: fbUser.uid,
-        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+        name: fbUser.displayName || (isInitialAdmin ? (fbUser.email?.includes('aman') ? 'Aman Sir' : 'Harshit Singh') : (fbUser.email?.split('@')[0] || 'User')),
         email: fbUser.email || '',
         username: defaultUsername,
         role: isInitialAdmin ? 'ADMIN' : 'TEAM_MEMBER',
@@ -90,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
-        title: isInitialAdmin ? 'Administrator' : 'Team Member',
+        title: isInitialAdmin ? (fbUser.email?.includes('aman') ? 'Founder & CEO' : 'Super Admin') : 'Team Member',
         department: isInitialAdmin ? 'Administration & Management' : 'Development',
       };
 
@@ -252,8 +256,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Check if user is Super Admin
-      const initialAdminEmail = (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || 'aman@codekap.com').toLowerCase().trim();
-      const isInitialAdmin = lowerInput === initialAdminEmail || lowerInput === 'aman' || lowerInput === 'usr_aman';
+      const initialAdminEmails = [
+        'aman@codekap.com',
+        'harshitsingh19622@gmail.com',
+        (process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL || '').toLowerCase().trim(),
+      ].filter(Boolean);
+      const isInitialAdmin =
+        initialAdminEmails.includes(lowerInput) ||
+        lowerInput === 'aman' ||
+        lowerInput === 'usr_aman';
 
       if (isInitialAdmin) {
         let adminProf: UserProfile = { ...DEFAULT_DEV_ADMIN };

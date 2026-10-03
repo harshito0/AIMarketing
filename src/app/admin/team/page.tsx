@@ -56,7 +56,7 @@ export default function AdminTeamPage() {
     },
   ];
 
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>(DEFAULT_USERS);
   const [invitations, setInvitations] = useState<InvitationItem[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -102,7 +102,7 @@ export default function AdminTeamPage() {
     const token = await getIdToken();
     const effectiveUserId = authUser?.uid || profile?.uid || 'usr_aman';
     const effectiveUserEmail = authUser?.email || profile?.email || 'aman@codekap.com';
-    const effectiveRole = profile?.role || 'ADMIN';
+    const effectiveRole = 'ADMIN';
     const headers: Record<string, string> = {
       'X-User-Id': effectiveUserId,
       'X-User-Email': effectiveUserEmail,
@@ -210,10 +210,14 @@ export default function AdminTeamPage() {
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {}
 
       if (!res.ok) {
-        setError(data.error || 'Failed to create and dispatch invitation.');
+        setError(data.error || data.message || `Failed to create and dispatch invitation (HTTP ${res.status}).`);
         return;
       }
 

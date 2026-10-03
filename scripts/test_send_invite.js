@@ -5,14 +5,13 @@ const prisma = new PrismaClient();
 async function main() {
   const targetEmail = 'sharshit.0211@gmail.com';
   const role = 'DEVELOPER';
-  const name = 'Harshit';
-  const passcode = 'AGENT-5829';
+  const name = 'Harshit Singh';
+  const passcode = 'AGENT-8517';
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-  const host = 'localhost:3000';
-  const invitationUrl = `http://${host}/signup?passcode=${encodeURIComponent(passcode)}&email=${encodeURIComponent(targetEmail)}`;
+  const host = 'https://aimarketing-git-main-harshits-projects-42d4bb67.vercel.app';
+  const invitationUrl = `${host}/signup?passcode=${encodeURIComponent(passcode)}&email=${encodeURIComponent(targetEmail)}`;
 
   console.log(`[1/3] Upserting invitation in SQLite database for ${targetEmail}...`);
-  // Revoke any previous pending invites for this email
   await prisma.invitation.updateMany({
     where: { email: targetEmail, status: 'PENDING' },
     data: { status: 'REVOKED' },
@@ -57,14 +56,29 @@ async function main() {
   const smtpPass = process.env.SMTP_PASS || '';
 
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    service: 'gmail',
     auth: {
       user: smtpUser,
       pass: smtpPass,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
+
+  const plainTextContent = `Hello ${name},
+
+You have been invited to join the CodeKap OS workspace as ${role} by Aman Sir (Super Admin).
+
+Your Team Access Passcode: ${passcode}
+
+Click the link below to accept the invitation and complete your registration:
+${invitationUrl}
+
+Note: "Welcome to CodeKap OS workspace! Use this passcode to register and activate your account."
+
+If you did not expect this invitation from CodeKap OS Super Admin, you can disregard this email.
+`;
 
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 18px; background-color: #ffffff; color: #0f172a;">
@@ -105,9 +119,10 @@ async function main() {
   `;
 
   const info = await transporter.sendMail({
-    from: `CodeKap OS <${smtpUser}>`,
+    from: `"CodeKap OS" <${smtpUser}>`,
     to: targetEmail,
     subject: `CodeKap OS Workspace Invitation: You've been invited by Aman Sir [Passcode: ${passcode}]`,
+    text: plainTextContent,
     html: htmlContent,
   });
 

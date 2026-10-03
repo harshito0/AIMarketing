@@ -203,42 +203,51 @@ export function Sidebar() {
       .filter((group) => group.items.length > 0);
   }, [userNormDept, isAdmin, navGroups]);
 
-  // Open/collapsed states with smooth transitions
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({
-    management: true,
-    social: true,
-    crm: false,
-    team: false,
-    projects: true,
-    workspaces: true,
-    finance: true,
-    system: false,
-  });
+  // Helper to determine active group based on current URL path
+  const getActiveGroupId = React.useCallback(
+    (currentPath: string) => {
+      for (const group of filteredNavGroups) {
+        const matches = group.items.some(
+          (item) => currentPath === item.href || (item.href !== '/dashboard' && currentPath?.startsWith(item.href))
+        );
+        if (matches) return group.id;
+      }
+      return null;
+    },
+    [filteredNavGroups]
+  );
 
-  // Auto-expand active group with smooth recognition (prevent re-render loop)
+  // Single open group id for clean accordion behavior (defaults to active route group on load, others closed)
+  const [openGroupId, setOpenGroupId] = React.useState<string | null>(null);
+
+  // Ref for the sidebar navigation container to detect outside clicks
+  const navContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Sync active group when pathname changes or on initial mount
   React.useEffect(() => {
     if (!pathname) return;
-    setOpenGroups((prev) => {
-      let hasChanges = false;
-      const next = { ...prev };
-      for (const group of filteredNavGroups) {
-        const hasActiveChild = group.items.some(
-          (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
-        );
-        if (hasActiveChild && !next[group.id]) {
-          next[group.id] = true;
-          hasChanges = true;
-        }
-      }
-      return hasChanges ? next : prev;
-    });
-  }, [pathname, filteredNavGroups]);
+    const activeId = getActiveGroupId(pathname);
+    setOpenGroupId(activeId);
+  }, [pathname, getActiveGroupId]);
 
+  // Click outside listener: when clicking anywhere else on page, collapse menu back to active route
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navContainerRef.current && !navContainerRef.current.contains(event.target as Node)) {
+        const activeId = pathname ? getActiveGroupId(pathname) : null;
+        setOpenGroupId(activeId);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [pathname, getActiveGroupId]);
+
+  // Accordion toggle: Clicking opens current and closes all others; clicking again collapses it
   const toggleGroup = (groupId: string) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [groupId]: !prev[groupId],
-    }));
+    setOpenGroupId((prev) => (prev === groupId ? null : groupId));
   };
 
   const handleSignOut = async () => {
@@ -318,10 +327,10 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation Scrollable */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 text-slate-700 custom-scrollbar">
+      <div ref={navContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-1.5 text-slate-700 custom-scrollbar">
         {filteredNavGroups.map((group) => {
           const GroupIcon = group.icon;
-          const isOpen = !!openGroups[group.id];
+          const isOpen = openGroupId === group.id;
           const hasActiveChild = group.items.some(
             (item) => pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href))
           );

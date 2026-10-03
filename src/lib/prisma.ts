@@ -18,9 +18,11 @@ function resolveDatabaseUrl(): string {
         }
       }
     } catch {}
-    return `file:${tmpDb}`;
+    return `file:${tmpDb}?connection_limit=1&timeout=20000`;
   }
-  return process.env.DATABASE_URL || 'file:./dev.db';
+  // Always resolve to the absolute path of prisma/dev.db with busy timeout
+  const localDb = path.join(process.cwd(), 'prisma', 'dev.db').replace(/\\/g, '/');
+  return `file:${localDb}?connection_limit=1&timeout=20000`;
 }
 
 const resolvedDbUrl = resolveDatabaseUrl();

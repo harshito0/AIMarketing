@@ -11,9 +11,21 @@ export default function GSTReportsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Immediate hydration from cache
+    try {
+      const cached = localStorage.getItem('codekap_cached_invoices');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          setInvoices(parsed.filter((inv) => (inv.status || '').toUpperCase() !== 'DELETED'));
+          setLoading(false);
+        }
+      }
+    } catch {}
+
     async function fetchInvoices() {
       try {
-        const res = await fetch('/api/finance/invoices');
+        const res = await fetch('/api/finance/invoices', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {

@@ -35,19 +35,59 @@ export default function QuotationsPage() {
   const fetchQuotations = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/finance/quotations');
+      const res = await fetch('/api/finance/quotations', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) setQuotations(data);
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            setQuotations(data);
+            try {
+              localStorage.setItem('codekap_cached_quotations', JSON.stringify(data));
+            } catch {}
+          } else {
+            // Check if local cache has quotations before clearing
+            try {
+              const cached = localStorage.getItem('codekap_cached_quotations');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setQuotations(parsed);
+                  return;
+                }
+              }
+            } catch {}
+            setQuotations([]);
+          }
+        }
       }
     } catch (e) {
-      console.warn(e);
+      console.warn('Failed to fetch quotations, using cached state:', e);
+      try {
+        const cached = localStorage.getItem('codekap_cached_quotations');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) setQuotations(parsed);
+        }
+      } catch {}
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // 1. Instant hydration from localStorage on hard refresh
+    try {
+      const cached = localStorage.getItem('codekap_cached_quotations');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setQuotations(parsed);
+          setLoading(false);
+        }
+      }
+    } catch {}
+
+    // 2. Fresh fetch from server
     fetchQuotations();
   }, []);
 
@@ -58,9 +98,13 @@ export default function QuotationsPage() {
     try {
       const res = await fetch(`/api/finance/quotations/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setQuotations((prev) =>
-          prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DELETED' } : q))
-        );
+        setQuotations((prev) => {
+          const updated = prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DELETED' } : q));
+          try {
+            localStorage.setItem('codekap_cached_quotations', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -77,9 +121,13 @@ export default function QuotationsPage() {
         body: JSON.stringify({ status: 'DRAFT' }),
       });
       if (res.ok) {
-        setQuotations((prev) =>
-          prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DRAFT' } : q))
-        );
+        setQuotations((prev) => {
+          const updated = prev.map((q) => (q.id === id || q.quotationNumber === id ? { ...q, status: 'DRAFT' } : q));
+          try {
+            localStorage.setItem('codekap_cached_quotations', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -93,7 +141,13 @@ export default function QuotationsPage() {
     try {
       const res = await fetch(`/api/finance/quotations/${id}?permanent=true`, { method: 'DELETE' });
       if (res.ok) {
-        setQuotations((prev) => prev.filter((q) => q.id !== id && q.quotationNumber !== id));
+        setQuotations((prev) => {
+          const updated = prev.filter((q) => q.id !== id && q.quotationNumber !== id);
+          try {
+            localStorage.setItem('codekap_cached_quotations', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);

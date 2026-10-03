@@ -19,7 +19,7 @@ export default function FinanceOverviewPage() {
   useEffect(() => {
     async function loadFinanceData() {
       try {
-        const res = await fetch('/api/dashboard/overview');
+        const res = await fetch('/api/dashboard/overview', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setStats({

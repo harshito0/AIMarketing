@@ -41,59 +41,7 @@ interface QuotationEditorProps {
   onCancel?: () => void;
 }
 
-const PRESET_CUSTOMERS: SundryDebtorCustomer[] = [
-  {
-    accountDisplayName: 'mr. Sunil',
-    legalName: 'mr. Sunil',
-    registrationType: 'Unregistered (Without GST)',
-    partyType: 'Not Applicable',
-    mobileNo: '7528835379',
-    email: 'sunil@jdleads.in',
-    gstin: '04-CHANDIGARH',
-    addressLine1: 'JD lead CHANDIGARH',
-    city: 'CHANDIGARH',
-    state: 'CHANDIGARH',
-    country: 'India',
-    pincode: '160017',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-  {
-    accountDisplayName: 'M.S.I. GROUP OF INSTITUTE',
-    legalName: 'M.S.I. GROUP OF INSTITUTE',
-    registrationType: 'Registered Regular',
-    partyType: 'Not Applicable',
-    mobileNo: '9175288353',
-    email: 'admissions@msigroup.edu.in',
-    gstin: '03AEQPE9376K2ZY',
-    addressLine1: 'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE',
-    city: 'Mohali',
-    state: 'PUNJAB',
-    country: 'India',
-    pincode: '140307',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-  {
-    accountDisplayName: 'Glassfinity USA',
-    legalName: 'Glassfinity USA Inc.',
-    registrationType: 'Overseas / Export',
-    partyType: 'Not Applicable',
-    mobileNo: '18005550199',
-    email: 'contact@glassfinity.com',
-    gstin: '',
-    addressLine1: 'Glass finity usa, VIRGINIA',
-    city: 'Richmond',
-    state: 'Export / Overseas',
-    country: 'United States',
-    pincode: '23219',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-];
+const PRESET_CUSTOMERS: SundryDebtorCustomer[] = [];
 
 const PRESET_SERVICES = [
   {
@@ -254,7 +202,42 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
   }, [initialQuotation]);
 
   // Modals & Drawers
-  const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>(PRESET_CUSTOMERS);
+  const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>([]);
+
+  // Load real clients from database
+  useEffect(() => {
+    async function loadRealClients() {
+      try {
+        const res = await fetch('/api/clients');
+        if (res.ok) {
+          const clientsData = await res.json();
+          if (Array.isArray(clientsData) && clientsData.length > 0) {
+            const mapped: SundryDebtorCustomer[] = clientsData.map((c: any) => ({
+              accountDisplayName: c.name || c.businessName || 'Client',
+              legalName: c.businessName || c.name || 'Client',
+              registrationType: c.country === 'India' ? 'Registered Regular' : 'Overseas / Export',
+              partyType: 'Not Applicable',
+              gstin: c.clientGstin || '',
+              addressLine1: c.city ? `${c.city}, ${c.province || ''}` : (c.addressLine1 || ''),
+              city: c.city || '',
+              state: c.province || '',
+              country: c.country || 'India',
+              pincode: c.pincode || '',
+              mobileNo: c.contactPhone || '',
+              email: c.contactEmail || '',
+              openingBalance: 0,
+              balanceType: 'Cr',
+              balanceFormatted: '₹0.00 Cr',
+            }));
+            setCustomerList(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load registered clients:', err);
+      }
+    }
+    loadRealClients();
+  }, []);
   const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
   const [showCustomFieldsModal, setShowCustomFieldsModal] = useState(false);
   const [customFieldsList, setCustomFieldsList] = useState<CustomFieldItem[]>([]);
@@ -482,6 +465,20 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
 
       if (res.ok) {
         const savedData = await res.json();
+        // Immediately sync to localStorage cache
+        try {
+          const cached = localStorage.getItem('codekap_cached_quotations');
+          let list: QuotationItem[] = cached ? JSON.parse(cached) : [];
+          if (!Array.isArray(list)) list = [];
+          const existsIdx = list.findIndex((q) => q.id === savedData.id || q.quotationNumber === savedData.quotationNumber);
+          if (existsIdx >= 0) {
+            list[existsIdx] = savedData;
+          } else {
+            list.unshift(savedData);
+          }
+          localStorage.setItem('codekap_cached_quotations', JSON.stringify(list));
+        } catch {}
+
         setStatusMessage({ type: 'success', text: `Quotation ${quotationNumberFull} saved successfully!` });
         if (onSaved) onSaved(savedData);
         if (andPrint) {
@@ -489,7 +486,7 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
         } else {
           setTimeout(() => {
             router.push('/finance/quotations');
-          }, 600);
+          }, 400);
         }
       } else {
         const err = await res.json();

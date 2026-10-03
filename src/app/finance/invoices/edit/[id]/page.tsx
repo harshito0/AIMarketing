@@ -19,7 +19,7 @@ export default function EditSalesInvoicePage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/finance/invoices/${id}`)
+    fetch(`/api/finance/invoices/${id}`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('Invoice not found');
         return res.json();
@@ -28,6 +28,17 @@ export default function EditSalesInvoicePage() {
         setInvoice(data);
       })
       .catch((err) => {
+        try {
+          const cached = localStorage.getItem('codekap_cached_invoices');
+          if (cached) {
+            const list = JSON.parse(cached);
+            const found = list.find((inv: any) => inv.id === id || inv.invoiceNumber === id);
+            if (found) {
+              setInvoice(found);
+              return;
+            }
+          }
+        } catch (_) {}
         setError(err.message);
       })
       .finally(() => {

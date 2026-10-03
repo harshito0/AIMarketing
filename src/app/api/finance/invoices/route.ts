@@ -13,263 +13,6 @@ Nature of Supply: This is a B2B service transaction. No physical goods are deliv
 GST: GST charged as applicable or exempt export.
 Currency: All amounts are quoted and payable in INR (₹), unless specified otherwise.`;
 
-async function seedDefaultInvoicesIfEmpty() {
-  const count = await prisma.invoice.count();
-  if (count > 0) return;
-
-  // Invoice 1: INV0001 (From Screenshots)
-  const inv1Items = [
-    {
-      srNo: 1,
-      desc: 'Social Media Management',
-      deliverables: ['Weekly Content Scheduling', 'Community Engagement & Monitoring', 'Hashtag Research'],
-      hsn: '998314',
-      qty: 1,
-      unit: 'MTH',
-      rate: 3200,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 3200,
-      gstRate: 18,
-      gstAmount: 576,
-      totalAmount: 3776.0,
-    },
-    {
-      srNo: 2,
-      desc: 'Content Creation',
-      deliverables: ['12 Creative Post Creatives', 'Reels & Short Video Scripts', 'Caption Copywriting'],
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 4200,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 4200,
-      gstRate: 18,
-      gstAmount: 756,
-      totalAmount: 4956.0,
-    },
-    {
-      srNo: 3,
-      desc: 'Google Ads Management (Search Campaigns)',
-      deliverables: ['High-Intent Search Ads', 'Keyword Bidding & Negative Keywords', 'Conversion Tracking Setup'],
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 1800,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 1800,
-      gstRate: 18,
-      gstAmount: 324,
-      totalAmount: 2124.0,
-    },
-    {
-      srNo: 4,
-      desc: 'Google My Business Optimization',
-      deliverables: ['Weekly GMB Posts & Photo Updates', 'Review Response Automation', 'Local Map Citation Updates'],
-      hsn: '998361',
-      qty: 1,
-      unit: 'MTH',
-      rate: 1200.01,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 1200.01,
-      gstRate: 18,
-      gstAmount: 216.0,
-      totalAmount: 1416.01,
-    },
-    {
-      srNo: 5,
-      desc: 'PR & Brand Promotion (Basic)',
-      deliverables: ['Digital Press Release Distribution', 'Brand Authority Outreach', 'Media Mention Tracking'],
-      hsn: '998397',
-      qty: 1,
-      unit: 'MTH',
-      rate: 2311.86,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 2311.86,
-      gstRate: 18,
-      gstAmount: 416.13,
-      totalAmount: 2727.99,
-    },
-  ];
-
-  await prisma.invoice.create({
-    data: {
-      invoiceNumber: 'INV0001',
-      seriesName: 'Sales Invoice',
-      invoicePrefix: 'INV',
-      invoiceSuffix: '',
-      bookName: 'Sales Taxable',
-      date: '2026-04-28',
-      dueDate: '2026-05-13',
-      clientId: 'cli_msi_group',
-      clientName: 'M.S.I. GROUP OF INSTITUTE',
-      clientGstin: '03AEQPE9376K2ZY',
-      billingAddress:
-        'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307\nGSTIN: 03AEQPE9376K2ZY',
-      shippingAddress:
-        'M.S.I. GROUP OF INSTITUTE (GSTIN: 03AEQPE9376K2ZY)\nSCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307',
-      quotationNo: 'QUO-2026-004',
-      placeOfSupply: 'PUNJAB (03)',
-      itemsJson: JSON.stringify(inv1Items),
-      subtotal: 12711.87,
-      taxableAmount: 12711.87,
-      discountType: 'PERCENTAGE',
-      discountValue: 0,
-      discountAmount: 0,
-      cgst: 0,
-      sgst: 0,
-      igst: 2288.13,
-      serviceCharge: 0,
-      otherCharges: 0,
-      roundOff: 0,
-      totalAmount: 15000.0,
-      amountPaid: 15000.0,
-      balanceDue: 0.0,
-      currency: 'INR',
-      status: 'RECEIVED',
-      paymentMethod: 'IMPS',
-      bankDetailsJson: JSON.stringify(DEFAULT_BANK_DETAILS),
-      paymentDetailsJson: JSON.stringify({
-        isReceived: true,
-        paymentMode: 'IMPS',
-        refNo: 'AD/0102',
-        depositTo: 'CODEKAP',
-        amount: 15000.0,
-        receivedDate: '2026-04-28',
-      }),
-      notes:
-        'If receipt against this invoice was created, then it will be auto unadjusted this invoice from that receipt entry!',
-      terms: DEFAULT_TERMS,
-    },
-  });
-
-  // Invoice 2: INV0012 (From PDF)
-  const inv2Items = [
-    {
-      srNo: 1,
-      desc: 'On-Page SEO Optimization (Ongoing Monthly)',
-      deliverables: [
-        'Metadata & title optimization',
-        'Internal linking improvements',
-        'Website speed tweaks & technical hygiene',
-        'Mobile-friendliness check',
-      ],
-      hsn: '998365',
-      qty: 1,
-      unit: 'MTH',
-      rate: 6000,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 6000.0,
-      gstRate: 0,
-      gstAmount: 0,
-      totalAmount: 6000.0,
-    },
-    {
-      srNo: 2,
-      desc: 'Local SEO (Google My Business + Local Citations)',
-      deliverables: [
-        'GMB optimization (categories, services, posts)',
-        'NAP consistency (Name, Address, Phone)',
-        'Local directory listings (Canada/Surrey BC focused)',
-      ],
-      hsn: '998365',
-      qty: 1,
-      unit: 'MTH',
-      rate: 3300,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 3300.0,
-      gstRate: 0,
-      gstAmount: 0,
-      totalAmount: 3300.0,
-    },
-    {
-      srNo: 3,
-      desc: 'Monthly SEO Reporting (Basic)',
-      deliverables: [
-        'Keyword ranking summary',
-        'Google Analytics 4 traffic overview',
-        'Technical issues & recommendations',
-      ],
-      hsn: '998365',
-      qty: 1,
-      unit: 'MTH',
-      rate: 700,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 700.0,
-      gstRate: 0,
-      gstAmount: 0,
-      totalAmount: 700.0,
-    },
-  ];
-
-  await prisma.invoice.create({
-    data: {
-      invoiceNumber: 'INV0012',
-      seriesName: 'Sales Invoice',
-      invoicePrefix: 'INV',
-      invoiceSuffix: '',
-      bookName: 'Export Non-GST',
-      date: '2025-10-10',
-      dueDate: '2025-10-10',
-      clientId: 'cli_glassfinity_usa',
-      clientName: 'Glassfinity USA',
-      clientGstin: null,
-      billingAddress: 'Glass finity usa, VIRGINIA\nCountry: United States',
-      shippingAddress: 'Glass finity usa, VIRGINIA\nCountry: United States',
-      quotationNo: '',
-      placeOfSupply: 'Export / Overseas',
-      itemsJson: JSON.stringify(inv2Items),
-      subtotal: 10000.0,
-      taxableAmount: 10000.0,
-      discountType: 'PERCENTAGE',
-      discountValue: 0,
-      discountAmount: 0,
-      cgst: 0,
-      sgst: 0,
-      igst: 0,
-      serviceCharge: 0,
-      otherCharges: 0,
-      roundOff: 0,
-      totalAmount: 10000.0,
-      amountPaid: 10000.0,
-      balanceDue: 0.0,
-      currency: 'INR',
-      status: 'PAID',
-      paymentMethod: 'Bank Wire Transfer',
-      bankDetailsJson: JSON.stringify(DEFAULT_BANK_DETAILS),
-      paymentDetailsJson: JSON.stringify({
-        isReceived: true,
-        paymentMode: 'Wire Transfer',
-        refNo: 'WT/99120',
-        depositTo: 'CODEKAP',
-        amount: 10000.0,
-        receivedDate: '2025-10-10',
-      }),
-      notes: 'Monthly international retainer invoice for SEO deliverables.',
-      terms: `Scope of Work: Services delivered as per the agreed scope, proposal, or service agreement.
-Invoice Validity: This invoice is valid for 15 days from the date of issue unless otherwise stated.
-Nature of Supply: This is a B2B service transaction. No physical goods are delivered.
-GST: Currently unregistered for GST. No GST is charged on this invoice.
-Currency: All amounts are quoted and payable in INR (₹), unless specified otherwise.`,
-    },
-  });
-}
-
 export async function GET(req: Request) {
   try {
     await ensureSeedData();
@@ -288,22 +31,53 @@ export async function GET(req: Request) {
         }
       }
       const nextNumPart = String(maxNum + 1).padStart(4, '0');
-      return NextResponse.json({
-        prefix: 'INV',
-        nextNumPart,
-        suffix: '',
-        nextInvoiceNumber: `INV${nextNumPart}`,
+      return NextResponse.json(
+        {
+          prefix: 'INV',
+          nextNumPart,
+          suffix: '',
+          nextInvoiceNumber: `INV${nextNumPart}`,
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    let invoices: any[] = [];
+    try {
+      invoices = await prisma.invoice.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (dbErr) {
+      console.warn('[Invoices GET retry]:', dbErr);
+      await new Promise((r) => setTimeout(r, 200));
+      invoices = await prisma.invoice.findMany({
+        orderBy: { createdAt: 'desc' },
       });
     }
 
-    const invoices = await prisma.invoice.findMany({
-      orderBy: { createdAt: 'desc' },
+    return NextResponse.json(invoices, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
     });
-
-    return NextResponse.json(invoices);
   } catch (error: any) {
     console.error('[Invoices GET Error]:', error);
-    return NextResponse.json([]);
+    return NextResponse.json([], {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
   }
 }
 

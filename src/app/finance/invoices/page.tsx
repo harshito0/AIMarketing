@@ -40,19 +40,59 @@ export default function InvoicesPage() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/finance/invoices');
+      const res = await fetch('/api/finance/invoices', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) setInvoices(data);
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            setInvoices(data);
+            try {
+              localStorage.setItem('codekap_cached_invoices', JSON.stringify(data));
+            } catch {}
+          } else {
+            // Check if local cache has invoices before clearing
+            try {
+              const cached = localStorage.getItem('codekap_cached_invoices');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setInvoices(parsed);
+                  return;
+                }
+              }
+            } catch {}
+            setInvoices([]);
+          }
+        }
       }
     } catch (e) {
-      console.warn(e);
+      console.warn('Failed to fetch invoices, using cached state:', e);
+      try {
+        const cached = localStorage.getItem('codekap_cached_invoices');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) setInvoices(parsed);
+        }
+      } catch {}
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // 1. Instant hydration from localStorage on hard refresh
+    try {
+      const cached = localStorage.getItem('codekap_cached_invoices');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setInvoices(parsed);
+          setLoading(false);
+        }
+      }
+    } catch {}
+
+    // 2. Fresh fetch from server
     fetchInvoices();
   }, []);
 
@@ -63,9 +103,13 @@ export default function InvoicesPage() {
     try {
       const res = await fetch(`/api/finance/invoices/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setInvoices((prev) =>
-          prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DELETED' } : inv))
-        );
+        setInvoices((prev) => {
+          const updated = prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DELETED' } : inv));
+          try {
+            localStorage.setItem('codekap_cached_invoices', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -82,9 +126,13 @@ export default function InvoicesPage() {
         body: JSON.stringify({ status: 'DRAFT' }),
       });
       if (res.ok) {
-        setInvoices((prev) =>
-          prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DRAFT' } : inv))
-        );
+        setInvoices((prev) => {
+          const updated = prev.map((inv) => (inv.id === id || inv.invoiceNumber === id ? { ...inv, status: 'DRAFT' } : inv));
+          try {
+            localStorage.setItem('codekap_cached_invoices', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -98,7 +146,13 @@ export default function InvoicesPage() {
     try {
       const res = await fetch(`/api/finance/invoices/${id}?permanent=true`, { method: 'DELETE' });
       if (res.ok) {
-        setInvoices((prev) => prev.filter((inv) => inv.id !== id && inv.invoiceNumber !== id));
+        setInvoices((prev) => {
+          const updated = prev.filter((inv) => inv.id !== id && inv.invoiceNumber !== id);
+          try {
+            localStorage.setItem('codekap_cached_invoices', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     } catch (err) {
       console.error(err);

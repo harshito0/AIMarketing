@@ -14,132 +14,6 @@ const DEFAULT_TERMS = `1. Monthly services are billed in advance per cycle.
 5. Client must provide required content/references timely to avoid delay.
 6. Reports & reviews will be shared weekly.`;
 
-async function seedDefaultQuotationsIfEmpty() {
-  const count = await prisma.quotation.count();
-  if (count > 0) return;
-
-  // Quotation 1: Q0003 (From User's PDF)
-  const q3Items = [
-    {
-      srNo: 1,
-      desc: 'Website & Android App Development',
-      deliverables: [
-        'Custom Premium Website Development with Android Mobile Application including UI/UX Design, Admin Panel, Backend Development, API Integration, Database, Responsive Design, QR Integration, Source Code Handover, Testing, Deployment and 30 Days Technical Support.',
-      ],
-      hsn: '998314',
-      qty: 1,
-      unit: 'NOS',
-      rate: 110169.492,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 110169.49,
-      gstRate: 18,
-      gstAmount: 19830.51,
-      cessRate: 0,
-      cessAmount: 0,
-      totalAmount: 130000.0,
-    },
-  ];
-
-  await prisma.quotation.create({
-    data: {
-      quotationNumber: 'Q0003',
-      prefix: 'Q',
-      suffix: '',
-      date: '2026-07-09',
-      validUntil: '2026-08-09',
-      clientId: 'cli_sunil_jd',
-      clientName: 'mr. Sunil',
-      clientPhone: '+91 7528835379',
-      clientEmail: 'sunil@jdleads.in',
-      clientGstin: '04-CHANDIGARH',
-      billingAddress: 'JD lead CHANDIGARH,\nState: 04-CHANDIGARH Country: India',
-      itemsJson: JSON.stringify(q3Items),
-      subtotal: 110169.49,
-      taxableAmount: 110169.49,
-      cgst: 9915.255,
-      sgst: 9915.255,
-      igst: 0,
-      taxAmount: 19830.51,
-      discountBeforeTax: 0,
-      discountAfterTax: 0,
-      serviceCharge: 0,
-      otherCharges: 0,
-      roundOff: 0,
-      autoRoundOff: true,
-      totalAmount: 130000.0,
-      currency: 'INR',
-      status: 'SENT',
-      notes: 'Initial technical and commercial estimation for Web & Android App delivery.',
-      bankDetails: JSON.stringify(DEFAULT_BANK_DETAILS),
-      terms: DEFAULT_TERMS,
-    },
-  });
-
-  // Quotation 2: Q0004 (From User's Screenshot default state)
-  const q4Items = [
-    {
-      srNo: 1,
-      desc: 'Digital Marketing & Lead Generation Retainer',
-      deliverables: [
-        'Weekly Targeted Campaigns Setup & Optimization',
-        'Creative Graphic Ad Sets (15 Creatives)',
-        'Conversion Tracking & Weekly ROAS Analysis',
-      ],
-      hsn: '998314',
-      qty: 1,
-      unit: 'MTH',
-      rate: 42372.88,
-      rateType: 'EXCLUSIVE_GST',
-      discountPercent: 0,
-      discountAmount: 0,
-      taxableAmount: 42372.88,
-      gstRate: 18,
-      gstAmount: 7627.12,
-      cessRate: 0,
-      cessAmount: 0,
-      totalAmount: 50000.0,
-    },
-  ];
-
-  await prisma.quotation.create({
-    data: {
-      quotationNumber: 'Q0004',
-      prefix: 'Q',
-      suffix: '',
-      date: '2026-09-26',
-      validUntil: '2026-10-26',
-      clientId: 'cli_msi_group',
-      clientName: 'M.S.I. GROUP OF INSTITUTE',
-      clientPhone: '+91 9175288353',
-      clientEmail: 'admissions@msigroup.edu.in',
-      clientGstin: '03AEQPE9376K2ZY',
-      billingAddress:
-        'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE, Mohali, S.A.S Nagar, PUNJAB 140307',
-      itemsJson: JSON.stringify(q4Items),
-      subtotal: 42372.88,
-      taxableAmount: 42372.88,
-      cgst: 0,
-      sgst: 0,
-      igst: 7627.12,
-      taxAmount: 7627.12,
-      discountBeforeTax: 0,
-      discountAfterTax: 0,
-      serviceCharge: 0,
-      otherCharges: 0,
-      roundOff: 0,
-      autoRoundOff: true,
-      totalAmount: 50000.0,
-      currency: 'INR',
-      status: 'DRAFT',
-      notes: 'Write your special notes for this quotation.',
-      bankDetails: JSON.stringify(DEFAULT_BANK_DETAILS),
-      terms: DEFAULT_TERMS,
-    },
-  });
-}
-
 export async function GET(req: Request) {
   try {
     await ensureSeedData();
@@ -158,22 +32,53 @@ export async function GET(req: Request) {
         }
       }
       const nextNumPart = String(maxNum + 1).padStart(4, '0');
-      return NextResponse.json({
-        prefix: 'Q',
-        nextNumPart,
-        suffix: '',
-        nextQuotationNumber: `Q${nextNumPart}`,
+      return NextResponse.json(
+        {
+          prefix: 'Q',
+          nextNumPart,
+          suffix: '',
+          nextQuotationNumber: `Q${nextNumPart}`,
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    let quotations: any[] = [];
+    try {
+      quotations = await prisma.quotation.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (dbErr) {
+      console.warn('[Quotations GET retry]:', dbErr);
+      await new Promise((r) => setTimeout(r, 200));
+      quotations = await prisma.quotation.findMany({
+        orderBy: { createdAt: 'desc' },
       });
     }
 
-    const quotations = await prisma.quotation.findMany({
-      orderBy: { createdAt: 'desc' },
+    return NextResponse.json(quotations, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
     });
-
-    return NextResponse.json(quotations);
   } catch (error: any) {
     console.error('[Quotations GET Error]:', error);
-    return NextResponse.json([]);
+    return NextResponse.json([], {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
   }
 }
 

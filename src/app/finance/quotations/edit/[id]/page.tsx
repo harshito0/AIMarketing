@@ -19,7 +19,7 @@ export default function EditQuotationPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    fetch(`/api/finance/quotations/${id}`)
+    fetch(`/api/finance/quotations/${id}`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('Quotation not found');
         return res.json();
@@ -28,6 +28,17 @@ export default function EditQuotationPage() {
         setQuotation(data);
       })
       .catch((err) => {
+        try {
+          const cached = localStorage.getItem('codekap_cached_quotations');
+          if (cached) {
+            const list = JSON.parse(cached);
+            const found = list.find((q: any) => q.id === id || q.quotationNumber === id);
+            if (found) {
+              setQuotation(found);
+              return;
+            }
+          }
+        } catch (_) {}
         setError(err.message);
       })
       .finally(() => {

@@ -55,62 +55,7 @@ interface PaymentRow {
   amount: number;
 }
 
-const PRESET_CUSTOMERS: SundryDebtorCustomer[] = [
-  {
-    accountDisplayName: 'M.S.I. GROUP OF INSTITUTE',
-    legalName: 'M.S.I. GROUP OF INSTITUTE',
-    registrationType: 'Registered Regular',
-    partyType: 'Not Applicable',
-    gstin: '03AEQPE9376K2ZY',
-    addressLine1: 'SCO NO 12 & 13, FIRST, SECOND & THIRD FLOOR, MONGA CITY CENTRE',
-    addressLine2: 'Mohali, S.A.S Nagar',
-    city: 'Mohali',
-    state: 'PUNJAB',
-    pincode: '140307',
-    country: 'India',
-    mobileNo: '9175288353',
-    email: 'admissions@msigroup.edu.in',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-  {
-    accountDisplayName: 'Glassfinity USA',
-    legalName: 'Glassfinity USA Inc.',
-    registrationType: 'Overseas / Export',
-    partyType: 'Not Applicable',
-    gstin: '',
-    addressLine1: 'Glass finity usa',
-    addressLine2: 'VIRGINIA',
-    city: 'Richmond',
-    state: 'Export / Overseas',
-    pincode: '23219',
-    country: 'United States',
-    mobileNo: '18005550199',
-    email: 'contact@glassfinity.com',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-  {
-    accountDisplayName: 'Jeevansphere Technologies',
-    legalName: 'Jeevansphere Technologies Pvt Ltd',
-    registrationType: 'Registered Regular',
-    partyType: 'Private Limited',
-    gstin: '07AABCU9603R1ZX',
-    addressLine1: 'Connaught Place',
-    addressLine2: 'Barakhamba Road',
-    city: 'New Delhi',
-    state: 'DELHI',
-    pincode: '110001',
-    country: 'India',
-    mobileNo: '9811002233',
-    email: 'info@jeevansphere.com',
-    openingBalance: 0,
-    balanceType: 'Cr',
-    balanceFormatted: '₹0.00 Cr',
-  },
-];
+const PRESET_CUSTOMERS: SundryDebtorCustomer[] = [];
 
 const PRESET_SERVICES = [
   { desc: 'Social Media Management', hsn: '998314', defaultRate: 3200, unit: 'MTH' },
@@ -336,7 +281,42 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
 
   // Modals & Drawers state
   const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
-  const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>(PRESET_CUSTOMERS);
+  const [customerList, setCustomerList] = useState<SundryDebtorCustomer[]>([]);
+
+  // Load real clients from database
+  useEffect(() => {
+    async function loadRealClients() {
+      try {
+        const res = await fetch('/api/clients');
+        if (res.ok) {
+          const clientsData = await res.json();
+          if (Array.isArray(clientsData) && clientsData.length > 0) {
+            const mapped: SundryDebtorCustomer[] = clientsData.map((c: any) => ({
+              accountDisplayName: c.name || c.businessName || 'Client',
+              legalName: c.businessName || c.name || 'Client',
+              registrationType: c.country === 'India' ? 'Registered Regular' : 'Overseas / Export',
+              partyType: 'Not Applicable',
+              gstin: c.clientGstin || '',
+              addressLine1: c.city ? `${c.city}, ${c.province || ''}` : (c.addressLine1 || ''),
+              city: c.city || '',
+              state: c.province || '',
+              country: c.country || 'India',
+              pincode: c.pincode || '',
+              mobileNo: c.contactPhone || '',
+              email: c.contactEmail || '',
+              openingBalance: 0,
+              balanceType: 'Cr',
+              balanceFormatted: '₹0.00 Cr',
+            }));
+            setCustomerList(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load registered clients:', err);
+      }
+    }
+    loadRealClients();
+  }, []);
   const [showCustomFieldsModal, setShowCustomFieldsModal] = useState(false);
   const [customFieldsList, setCustomFieldsList] = useState<CustomFieldItem[]>([]);
   const [showItemTuneModal, setShowItemTuneModal] = useState(false);
@@ -616,6 +596,20 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
 
       if (res.ok) {
         const savedData = await res.json();
+        // Immediately sync to localStorage cache
+        try {
+          const cached = localStorage.getItem('codekap_cached_invoices');
+          let list: InvoiceItem[] = cached ? JSON.parse(cached) : [];
+          if (!Array.isArray(list)) list = [];
+          const existsIdx = list.findIndex((i) => i.id === savedData.id || i.invoiceNumber === savedData.invoiceNumber);
+          if (existsIdx >= 0) {
+            list[existsIdx] = savedData;
+          } else {
+            list.unshift(savedData);
+          }
+          localStorage.setItem('codekap_cached_invoices', JSON.stringify(list));
+        } catch {}
+
         setStatusMessage({ type: 'success', text: `Invoice ${invoiceNumberFull} saved successfully!` });
         if (onSaved) onSaved(savedData);
         if (andPrint) {
@@ -623,7 +617,7 @@ Currency: All amounts are quoted and payable in INR (₹), unless specified othe
         } else {
           setTimeout(() => {
             router.push('/finance/invoices');
-          }, 600);
+          }, 400);
         }
       } else {
         const err = await res.json();

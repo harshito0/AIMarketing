@@ -497,24 +497,30 @@ const SQLITE_INIT_TABLES = [
 ];
 
 let tablesEnsured = false;
+let isSeeded = false;
+let seedPromise: Promise<void> | null = null;
 
 export async function ensureSeedData() {
-  try {
-    if (!tablesEnsured) {
-      for (const query of SQLITE_INIT_TABLES) {
+  if (isSeeded) return;
+  if (seedPromise) return seedPromise;
+
+  seedPromise = (async () => {
+    try {
+      if (!tablesEnsured) {
+        for (const query of SQLITE_INIT_TABLES) {
+          try {
+            await prisma.$executeRawUnsafe(query);
+          } catch {}
+        }
+        // Ensure department column exists in User and Invitation
         try {
-          await prisma.$executeRawUnsafe(query);
+          await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "department" TEXT DEFAULT 'Development';`);
         } catch {}
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE "Invitation" ADD COLUMN "department" TEXT DEFAULT 'Development';`);
+        } catch {}
+        tablesEnsured = true;
       }
-      // Ensure department column exists in User and Invitation
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "department" TEXT DEFAULT 'Development';`);
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Invitation" ADD COLUMN "department" TEXT DEFAULT 'Development';`);
-      } catch {}
-      tablesEnsured = true;
-    }
 
     // 1. Ensure Super Admin (Aman Sir)
     const existingAman = await prisma.user.findFirst({
@@ -782,8 +788,13 @@ export async function ensureSeedData() {
         }
       });
     }
-
+    isSeeded = true;
   } catch (err) {
     console.warn('[Seed Data Warning]:', err);
+  } finally {
+    seedPromise = null;
   }
+})();
+
+  return seedPromise;
 }

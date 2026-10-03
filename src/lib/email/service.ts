@@ -10,22 +10,35 @@ export interface SendInvitationEmailParams {
 }
 
 /**
- * Real Email Delivery Service for Agent AI.
- * Delivers invitation emails with secure passcodes and join links via SMTP (Gmail, SendGrid, etc.) or Resend.
+ * Real Email Delivery Service for CodeKap OS.
+ * Delivers invitation emails with secure passcodes and join links via Gmail SMTP.
  */
 export async function sendInvitationEmail(
   params: SendInvitationEmailParams
 ): Promise<{ success: boolean; delivered: boolean; messageId?: string; info?: string }> {
   const smtpUser = process.env.SMTP_USER || 'harshitsingh19622@gmail.com';
   const smtpPass = process.env.SMTP_PASS || 'gbvqcaojszvhuvei';
-  const emailFrom = process.env.EMAIL_FROM || `CodeKap OS <${smtpUser}>`;
+  const emailFrom = `"CodeKap OS" <${smtpUser}>`;
 
   const { toEmail, role, invitedByName, passcode, invitationUrl, message } = params;
+
+  const plainTextContent = `Hello,
+
+You have been invited to join the CodeKap OS workspace as ${role} by ${invitedByName}.
+
+Your Team Access Passcode: ${passcode || 'AGENT-5829'}
+
+Click the link below to accept the invitation and complete your registration:
+${invitationUrl}
+
+${message ? `Note from Admin: "${message}"\n` : ''}
+If you did not expect this invitation from CodeKap OS Super Admin, you can disregard this email.
+`;
 
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 18px; background-color: #ffffff; color: #0f172a;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background: linear-block; background-color: #2563eb; color: #ffffff; width: 54px; height: 54px; line-height: 54px; border-radius: 16px; font-weight: 900; font-size: 26px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">C</div>
+        <div style="display: inline-block; background-color: #2563eb; color: #ffffff; width: 54px; height: 54px; line-height: 54px; border-radius: 16px; font-weight: 900; font-size: 26px; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);">C</div>
         <h2 style="color: #0f172a; margin-top: 14px; margin-bottom: 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">CodeKap OS</h2>
         <p style="color: #64748b; font-size: 13px; margin-top: 0; font-weight: 600;">Super Admin Workspace Invitation</p>
       </div>
@@ -50,7 +63,7 @@ export async function sendInvitationEmail(
 
       <div style="text-align: center; margin-top: 24px; margin-bottom: 28px;">
         <a href="${invitationUrl}" style="background-color: #2563eb; color: #ffffff; font-weight: 800; text-decoration: none; padding: 15px 36px; border-radius: 12px; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);">
-          ACCEPT INVITATION & REGISTER →
+          ACCEPT INVITATION & REGISTER &rarr;
         </a>
       </div>
 
@@ -66,14 +79,16 @@ export async function sendInvitationEmail(
     </div>
   `;
 
+  // Try Gmail Service first (direct SSL on port 465)
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      service: 'gmail',
       auth: {
         user: smtpUser,
         pass: smtpPass,
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
 
@@ -81,17 +96,47 @@ export async function sendInvitationEmail(
       from: emailFrom,
       to: toEmail,
       subject: `CodeKap OS Workspace Invitation: You've been invited by ${invitedByName} [Passcode: ${passcode || 'INVITE'}]`,
+      text: plainTextContent,
       html: htmlContent,
     });
 
     console.log(`[Gmail Success]: Invitation sent to ${toEmail}. MessageId: ${info.messageId}`);
     return { success: true, delivered: true, messageId: info.messageId };
   } catch (error: any) {
-    console.error(`[Gmail Delivery Error]: Failed to send to ${toEmail}:`, error.message || error);
-    return {
-      success: false,
-      delivered: false,
-      info: error.message || 'SMTP transmission error',
-    };
+    console.warn(`[Gmail Service Warning]: Trying host fallback for ${toEmail}:`, error.message);
+
+    // Fallback to smtp.gmail.com host
+    try {
+      const fallbackTransporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+
+      const info = await fallbackTransporter.sendMail({
+        from: emailFrom,
+        to: toEmail,
+        subject: `CodeKap OS Workspace Invitation: You've been invited by ${invitedByName} [Passcode: ${passcode || 'INVITE'}]`,
+        text: plainTextContent,
+        html: htmlContent,
+      });
+
+      console.log(`[Gmail Fallback Success]: Invitation sent to ${toEmail}. MessageId: ${info.messageId}`);
+      return { success: true, delivered: true, messageId: info.messageId };
+    } catch (fallbackError: any) {
+      console.error(`[Gmail Final Delivery Error]: Failed to send to ${toEmail}:`, fallbackError.message || fallbackError);
+      return {
+        success: false,
+        delivered: false,
+        info: fallbackError.message || 'SMTP transmission error',
+      };
+    }
   }
 }

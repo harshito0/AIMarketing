@@ -575,13 +575,29 @@ export async function ensureSeedData() {
         });
       }
 
+      const existingHarshit8517 = await prisma.invitation.findFirst({
+        where: { passcode: 'AGENT-8517' },
+      });
+      if (!existingHarshit8517) {
+        const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+        await prisma.invitation.create({
+          data: {
+            email: 'sharshit.0211@gmail.com',
+            name: 'Harshit Singh',
+            role: 'DEVELOPER',
+            department: 'Development',
+            passcode: 'AGENT-8517',
+            status: 'PENDING',
+            invitedBy: 'usr_aman',
+            invitedByName: 'Aman Sir (Super Admin)',
+            message: 'Welcome to CodeKap OS workspace! Use this passcode to register and activate your account.',
+            expiresAt,
+          },
+        });
+      }
+
       const existingHarshitInvite = await prisma.invitation.findFirst({
-        where: {
-          OR: [
-            { passcode: 'AGENT-5829' },
-            { email: 'sharshit.0211@gmail.com' }
-          ]
-        },
+        where: { passcode: 'AGENT-5829' },
       });
       if (!existingHarshitInvite) {
         const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days

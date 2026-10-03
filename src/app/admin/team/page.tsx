@@ -58,6 +58,19 @@ export default function AdminTeamPage() {
 
   const DEFAULT_INVITATIONS: InvitationItem[] = [
     {
+      id: 'inv_harshit_8517',
+      email: 'sharshit.0211@gmail.com',
+      name: 'Harshit Singh',
+      role: 'DEVELOPER',
+      passcode: 'AGENT-8517',
+      status: 'PENDING',
+      invitedBy: 'usr_aman',
+      invitedByName: 'Aman Sir (Super Admin)',
+      message: 'Welcome to CodeKap OS workspace! Use this passcode to register and activate your account.',
+      expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
+    },
+    {
       id: 'inv_harshit_dev',
       email: 'sharshit.0211@gmail.com',
       name: 'Harshit',
@@ -377,14 +390,27 @@ export default function AdminTeamPage() {
     setError('');
     setSuccessMessage('');
     try {
+      const invItem = invitations.find((i) => i.id === invitationId || i.email === email);
       const headers = await getAuthHeaders();
       const res = await fetch(`/api/admin/invitations/${encodeURIComponent(invitationId)}/resend`, {
         method: 'POST',
         headers,
+        body: JSON.stringify({
+          email,
+          passcode: invItem?.passcode || 'AGENT-8517',
+          role: invItem?.role || 'DEVELOPER',
+          name: invItem?.name || 'Harshit',
+          message: invItem?.message || '',
+        }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {}
+
       if (res.ok) {
-        setSuccessMessage(`Invitation email & passcode resent to ${email}!`);
+        setSuccessMessage(data.message || `Invitation email & passcode resent to ${email}!`);
       } else {
         setError(data.error || 'Failed to resend invitation email.');
       }

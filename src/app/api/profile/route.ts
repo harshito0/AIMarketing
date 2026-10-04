@@ -9,6 +9,7 @@ import {
   releaseUsername,
   validateUsernameFormat,
   recordAuditLog,
+  resolveUsername,
 } from '../../../lib/firebase/firestore-service';
 
 export const dynamic = 'force-dynamic';

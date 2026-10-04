@@ -130,7 +130,7 @@ export default function EmployeesPage() {
     setActiveEmployee(emp);
     setEditFormData({
       id: emp.id,
-      employeeId: emp.employeeId,
+      employeeId: emp.employeeId || '',
       name: emp.name || '',
       email: emp.email || '',
       phone: emp.phone || '',

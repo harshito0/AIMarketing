@@ -603,25 +603,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     try {
-      if (clientAuth.currentUser) {
-        await fetchProfile(clientAuth.currentUser);
-      } else if (profile) {
-        const token = await getIdToken();
-        const headers: Record<string, string> = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        if (profile.uid) headers['X-User-Id'] = profile.uid;
-        if (profile.role) headers['X-User-Role'] = profile.role;
+      const token = await getIdToken().catch(() => null);
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (profile?.uid) headers['X-User-Id'] = profile.uid;
+      if (profile?.role) headers['X-User-Role'] = profile.role;
+      if (profile?.email) headers['X-User-Email'] = profile.email;
 
-        const res = await fetch('/api/profile', { headers });
-        if (res.ok) {
-          const updated = await res.json();
-          if (updated && !updated.error && updated.name) {
-            setProfile(updated);
-            try {
-              localStorage.setItem('agent_ai_user_session', JSON.stringify(updated));
-            } catch {}
-          }
+      const res = await fetch('/api/profile', { headers });
+      if (res.ok) {
+        const updated = await res.json();
+        if (updated && !updated.error && updated.name) {
+          setProfile(updated);
+          try {
+            localStorage.setItem('agent_ai_user_session', JSON.stringify(updated));
+          } catch {}
         }
+      } else if (clientAuth.currentUser) {
+        await fetchProfile(clientAuth.currentUser);
       }
     } catch (e) {
       console.warn('[refreshProfile notice]:', e);

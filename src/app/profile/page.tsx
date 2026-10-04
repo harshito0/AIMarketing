@@ -35,12 +35,15 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const [imagePreviewInfo, setImagePreviewInfo] = useState<string | null>(null);
 
+  const hasInitializedRef = useRef(false);
+
   useEffect(() => {
-    if (profile) {
+    if (profile && !hasInitializedRef.current) {
       setName(profile.name || '');
       setUsername(profile.username || '');
       setAvatar(profile.avatar || '');
       setTitle(profile.title || '');
+      hasInitializedRef.current = true;
     }
   }, [profile]);
 
@@ -123,7 +126,7 @@ export default function ProfilePage() {
 
     setLoading(true);
     try {
-      const token = await getIdToken();
+      const token = await getIdToken().catch(() => null);
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       headers['X-User-Id'] = profile?.uid || 'usr_aman';
@@ -132,9 +135,9 @@ export default function ProfilePage() {
 
       const payload = {
         name: name.trim(),
-        username: username.trim(),
-        avatar: avatar.trim(),
-        title: title.trim(),
+        username: username.trim().toLowerCase().replace(/^@/, ''),
+        avatar: (avatar || '').trim(),
+        title: (title || '').trim(),
       };
 
       const res = await fetch('/api/profile', {
@@ -152,23 +155,33 @@ export default function ProfilePage() {
       }
 
       if (!res.ok) {
-        setError(data.error || 'Failed to update profile. Please try again.');
+        const errorMsg = data.error || (res.statusText ? `Request failed (${res.status} ${res.statusText})` : 'Failed to update profile. Please try again.');
+        setError(errorMsg);
       } else {
         setSuccess('Profile details and photo updated successfully!');
         setImagePreviewInfo(null);
 
-        // Update local session storage immediately for instant UI update
-        if (profile) {
-          const updatedSession = { ...profile, ...payload };
-          try {
-            localStorage.setItem('agent_ai_user_session', JSON.stringify(updatedSession));
-          } catch {}
-        }
+        // Update form state directly with saved response
+        if (data.name) setName(data.name);
+        if (data.username) setUsername(data.username);
+        if (data.avatar !== undefined) setAvatar(data.avatar);
+        if (data.title !== undefined) setTitle(data.title);
 
-        await refreshProfile();
+        // Update local session storage immediately for instant UI update
+        const updatedSession = { ...(profile || {}), ...payload, ...(data || {}) };
+        try {
+          localStorage.setItem('agent_ai_user_session', JSON.stringify(updatedSession));
+        } catch {}
+
+        try {
+          await refreshProfile();
+        } catch (rfErr) {
+          console.warn('[Profile refresh warning]:', rfErr);
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Error updating profile. Please try again.');
+      console.error('[Profile update submit error]:', err);
+      setError(err?.message || 'Error updating profile. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -75,6 +75,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
 
     if (dbUser) {
       let dept = (dbUser as any).department || 'Development';
+      let avatarToUse = dbUser.avatar || '';
       try {
         const emp = await prisma.employee.findFirst({
           where: {
@@ -86,6 +87,9 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         });
         if (emp?.department) {
           dept = emp.department;
+        }
+        if (!avatarToUse && emp?.avatar) {
+          avatarToUse = emp.avatar;
         }
       } catch {}
 
@@ -99,7 +103,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         emailVerified: true,
         createdAt: dbUser.createdAt.toISOString(),
         updatedAt: dbUser.updatedAt.toISOString(),
-        avatar: dbUser.avatar,
+        avatar: avatarToUse,
         title: dbUser.title,
         department: dept,
       };

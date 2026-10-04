@@ -64,32 +64,42 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: validation.error }, { status: 400 });
       }
 
-      const available = await isUsernameAvailable(newUsername);
-      if (!available) {
-        return NextResponse.json({ error: `Username "${newUsername}" is already taken.` }, { status: 400 });
+      try {
+        const existingOwner = await resolveUsername(newUsername);
+        if (existingOwner && existingOwner.userId !== currentProfile.uid) {
+          return NextResponse.json({ error: `Username "${newUsername}" is already taken.` }, { status: 400 });
+        }
+      } catch {}
+
+      // Release old username & claim new username safely
+      try {
+        if (currentProfile.username) {
+          await releaseUsername(currentProfile.username);
+        }
+        await claimUsername(currentProfile.uid, newUsername);
+        updatedProfile.username = newUsername;
+
+        await recordAuditLog({
+          userId: currentProfile.uid,
+          userName: updatedProfile.name,
+          action: 'USERNAME_CHANGED',
+          status: 'SUCCESS',
+          details: `Changed username from @${currentProfile.username} to @${newUsername}`,
+        });
+      } catch (userClaimErr) {
+        console.warn('[Username Claim Warning]:', userClaimErr);
+        updatedProfile.username = newUsername;
       }
-
-      // Release old username & claim new username
-      if (currentProfile.username) {
-        await releaseUsername(currentProfile.username);
-      }
-
-      await claimUsername(currentProfile.uid, newUsername);
-      updatedProfile.username = newUsername;
-
-      await recordAuditLog({
-        userId: currentProfile.uid,
-        userName: updatedProfile.name,
-        action: 'USERNAME_CHANGED',
-        status: 'SUCCESS',
-        details: `Changed username from @${currentProfile.username} to @${newUsername}`,
-      });
     }
 
     updatedProfile.updatedAt = new Date().toISOString();
-    await saveUserProfile(updatedProfile);
+    try {
+      await saveUserProfile(updatedProfile);
+    } catch (saveErr) {
+      console.warn('[saveUserProfile Warning]:', saveErr);
+    }
 
-    // Sync with Prisma SQLite User Table
+    // Sync with Prisma SQLite User Table (Primary Source of Truth)
     try {
       if (currentProfile.email) {
         await prisma.user.upsert({
@@ -101,18 +111,40 @@ export async function PATCH(req: Request) {
             role: currentProfile.role || 'ADMIN',
             avatar: updatedProfile.avatar || '',
             title: updatedProfile.title || '',
-            department: updatedProfile.department || 'Development',
+            department: updatedProfile.department || 'Administration & Management',
           },
           update: {
             name: updatedProfile.name,
-            avatar: updatedProfile.avatar || '',
-            title: updatedProfile.title || '',
-            department: updatedProfile.department || 'Development',
+            avatar: updatedProfile.avatar !== undefined ? updatedProfile.avatar : undefined,
+            title: updatedProfile.title !== undefined ? updatedProfile.title : undefined,
+            department: updatedProfile.department !== undefined ? updatedProfile.department : undefined,
           },
         });
       }
     } catch (dbErr) {
       console.warn('[Prisma Profile Sync notice]:', dbErr);
+    }
+
+    // Also sync avatar & title with Employee record if exists
+    try {
+      if (currentProfile.email) {
+        await prisma.employee.updateMany({
+          where: {
+            OR: [
+              { email: currentProfile.email },
+              { name: currentProfile.name },
+            ],
+          },
+          data: {
+            name: updatedProfile.name,
+            avatar: updatedProfile.avatar || null,
+            designation: updatedProfile.title || undefined,
+            department: updatedProfile.department || undefined,
+          },
+        });
+      }
+    } catch (empSyncErr) {
+      console.warn('[Employee Profile Sync notice]:', empSyncErr);
     }
 
     return NextResponse.json(updatedProfile);

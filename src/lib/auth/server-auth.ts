@@ -140,7 +140,7 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
       lookupEmail.toLowerCase().includes('harshit')
     ));
 
-  if (!userProfile || isAmanOrAdmin) {
+  if (!userProfile) {
     if (isAmanOrAdmin) {
       userProfile = {
         uid: lookupUid || 'usr_aman',
@@ -169,6 +169,13 @@ export async function verifyServerAuth(req: Request): Promise<AuthVerificationRe
         updatedAt: new Date().toISOString(),
         department: 'Development',
       };
+    }
+  } else {
+    // If profile was retrieved from database, ensure any missing fields are safely populated without overwriting saved custom avatar or name
+    if (isAmanOrAdmin) {
+      if (!userProfile.role) userProfile.role = 'ADMIN';
+      if (!userProfile.title) userProfile.title = 'Super Admin / Founder & CEO';
+      if (!userProfile.department) userProfile.department = 'Administration & Management';
     }
   }
 

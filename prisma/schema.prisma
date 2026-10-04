@@ -659,4 +659,16 @@ model MessageRead {
   @@unique([messageId, userId])
 }
 
-
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  date        String
+  time        String?  @default("10:00 AM")
+  type        String   @default("PROJECT") // CRM, SALES, PROJECT, FINANCE, MARKETING
+  priority    String   @default("MEDIUM")  // HIGH, MEDIUM, LOW
+  description String?  @default("")
+  status      String   @default("PENDING") // PENDING, COMPLETED, IN_PROGRESS
+  color       String?  @default("bg-blue-100 text-blue-800")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

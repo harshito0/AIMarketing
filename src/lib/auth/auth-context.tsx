@@ -83,6 +83,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const isInitialAdmin = fbUser.email && initialAdminEmails.includes(fbUser.email.toLowerCase().trim());
       const defaultUsername = fbUser.email ? fbUser.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') : fbUser.uid.substring(0, 8);
 
+      let existingAvatar = '';
+      try {
+        const cached = localStorage.getItem('agent_ai_user_session');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.avatar) existingAvatar = parsed.avatar;
+        }
+      } catch {}
+
       const fastProfile: UserProfile = {
         uid: fbUser.uid,
         name: fbUser.displayName || (isInitialAdmin ? (fbUser.email?.includes('aman') ? 'Aman Sir' : 'Harshit Singh') : (fbUser.email?.split('@')[0] || 'User')),
@@ -93,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailVerified: fbUser.emailVerified || false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`,
+        avatar: existingAvatar || (isInitialAdmin ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80' : `https://api.dicebear.com/7.x/avataaars/svg?seed=${fbUser.uid}`),
         title: isInitialAdmin ? (fbUser.email?.includes('aman') ? 'Founder & CEO' : 'Super Admin') : 'Team Member',
         department: isInitialAdmin ? 'Administration & Management' : 'Development',
       };
@@ -103,20 +112,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('agent_ai_user_session', JSON.stringify(fastProfile));
       } catch {}
 
-      // Async background sync without blocking UI
+      // Immediately fetch persistent profile from SQLite DB (Single Source of Truth)
       try {
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 800));
-        const getProfilePromise = getUserProfile(fbUser.uid);
-        const uProf = await Promise.race([getProfilePromise, timeoutPromise]);
+        const token = await fbUser.getIdToken().catch(() => null);
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        headers['X-User-Id'] = fbUser.uid;
+        if (fbUser.email) headers['X-User-Email'] = fbUser.email;
 
-        if (uProf) {
-          setProfile(uProf);
-          try {
-            localStorage.setItem('agent_ai_user_session', JSON.stringify(uProf));
-          } catch {}
+        const res = await fetch('/api/profile', { headers });
+        if (res.ok) {
+          const dbData = await res.json();
+          if (dbData && !dbData.error && dbData.name) {
+            setProfile(dbData);
+            try {
+              localStorage.setItem('agent_ai_user_session', JSON.stringify(dbData));
+            } catch {}
+            return;
+          }
         }
       } catch (err) {
-        console.warn('[AuthProvider] Profile sync warning:', err);
+        console.warn('[AuthProvider] API Profile sync warning:', err);
       }
     } catch (err) {
       console.warn('[AuthProvider] fetchProfile error:', err);
@@ -128,7 +144,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const cached = localStorage.getItem('agent_ai_user_session');
       if (cached) {
-        setProfile(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setProfile(parsed);
+
+        // Background sync to ensure fresh profile data from DB on hard refresh
+        fetch('/api/profile', {
+          headers: {
+            'X-User-Id': parsed.uid || 'usr_aman',
+            'X-User-Email': parsed.email || 'aman@codekap.com',
+            'X-User-Role': parsed.role || 'ADMIN',
+          },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((dbData) => {
+            if (dbData && !dbData.error && dbData.name) {
+              setProfile(dbData);
+              try {
+                localStorage.setItem('agent_ai_user_session', JSON.stringify(dbData));
+              } catch {}
+            }
+          })
+          .catch(() => {});
       } else {
         setProfile(null);
       }

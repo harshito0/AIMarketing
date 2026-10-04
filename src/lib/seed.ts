@@ -633,6 +633,62 @@ export async function ensureSeedData() {
       });
     }
 
+    // 3b. Ensure Initial Employees in SQLite Employee Table (Persistent DB Records)
+    const empCount = await prisma.employee.count();
+    if (empCount === 0) {
+      const dbAman = await prisma.user.findFirst({
+        where: { email: 'aman@codekap.com' },
+      });
+      await prisma.employee.createMany({
+        data: [
+          {
+            id: 'emp_01',
+            employeeId: 'CK-EMP-001',
+            name: 'Aman Sir',
+            email: 'aman@codekap.com',
+            phone: '+91 98765 43210',
+            department: 'Administration & Management',
+            designation: 'Founder & CEO',
+            role: 'SUPER_ADMIN',
+            joiningDate: '2025-01-01',
+            status: 'ACTIVE',
+            workloadScore: 40,
+            avatar: dbAman?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          },
+          {
+            id: 'emp_02',
+            employeeId: 'CK-EMP-002',
+            name: 'Harshit Singh',
+            email: 'harshitsingh19622@gmail.com',
+            phone: '+91 91234 56789',
+            department: 'Development',
+            designation: 'Lead Architect / Senior Engineer',
+            role: 'DEPT_HEAD',
+            managerName: 'Aman Sir',
+            joiningDate: '2025-06-15',
+            status: 'ACTIVE',
+            workloadScore: 85,
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=harshit',
+          },
+          {
+            id: 'emp_03',
+            employeeId: 'CK-EMP-003',
+            name: 'Pooja Sharma',
+            email: 'pooja.sharma@codekap.com',
+            phone: '+91 98111 22334',
+            department: 'Digital Marketing',
+            designation: 'Performance Marketing Strategist',
+            role: 'EMPLOYEE',
+            managerName: 'Aman Sir',
+            joiningDate: '2025-08-01',
+            status: 'ACTIVE',
+            workloadScore: 60,
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=pooja',
+          },
+        ],
+      });
+    }
+
     // 4. Ensure Core SOP Templates
     const sopCount = await prisma.sOP.count();
     if (sopCount === 0) {

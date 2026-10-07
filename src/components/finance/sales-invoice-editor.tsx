@@ -369,30 +369,65 @@ export function SalesInvoiceEditor({ initialInvoice, onSaved, onCancel }: SalesI
     const found = customerList.find((c) => c.accountDisplayName === cName || c.legalName === cName);
     if (found) {
       setCustomerBalance(found.balanceFormatted || '₹0.00 Cr');
-      setCustomerGstin(found.gstin || '');
-      const gstinLine = found.gstin ? `\nGSTIN: ${found.gstin}` : (found.panItTanNo ? `\nPAN: ${found.panItTanNo}` : '');
-      const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode]
+      setCustomerGstin(found.gstin || found.foreignTaxId || '');
+      const taxLine = found.gstin
+        ? `\nGSTIN: ${found.gstin}`
+        : (found.foreignTaxId ? `\nForeign Tax ID / BN: ${found.foreignTaxId}` : (found.panItTanNo ? `\nTax ID/PAN: ${found.panItTanNo}` : ''));
+      const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode, found.country && found.country !== 'India' ? found.country : '']
         .filter(Boolean)
         .join(', ');
-      setBillingAddress(`${addr}${gstinLine}`);
+      setBillingAddress(`${addr}${taxLine}`);
       setShippingAddress(`${found.accountDisplayName} ${found.gstin ? `(GSTIN: ${found.gstin})` : ''}\n${addr}`);
-      setPlaceOfSupply(found.state || 'PUNJAB (03)');
+      if (found.isForeign || (found.country && found.country !== 'India')) {
+        setPlaceOfSupply(found.country ? `Other Territory (96) - Export (${found.country})` : 'Other Territory (96) - Export');
+        setPlaceOfSupplyChecked(true);
+      } else {
+        setPlaceOfSupply(found.state || 'PUNJAB (03)');
+      }
     }
   };
 
   // When a new customer is saved from drawer
-  const handleCustomerSaved = (newCust: SundryDebtorCustomer) => {
+  const handleCustomerSaved = async (newCust: SundryDebtorCustomer) => {
     setCustomerList((prev) => [newCust, ...prev]);
     setCustomerName(newCust.accountDisplayName);
-    setCustomerGstin(newCust.gstin || '');
+    setCustomerGstin(newCust.gstin || newCust.foreignTaxId || '');
     setCustomerBalance(newCust.balanceFormatted || '₹0.00 Cr');
-    const gstinLine = newCust.gstin ? `\nGSTIN: ${newCust.gstin}` : (newCust.panItTanNo ? `\nPAN: ${newCust.panItTanNo}` : '');
-    const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode]
+    const taxLine = newCust.gstin
+      ? `\nGSTIN: ${newCust.gstin}`
+      : (newCust.foreignTaxId ? `\nForeign Tax ID / BN: ${newCust.foreignTaxId}` : (newCust.panItTanNo ? `\nTax ID/PAN: ${newCust.panItTanNo}` : ''));
+    const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode, newCust.country && newCust.country !== 'India' ? newCust.country : '']
       .filter(Boolean)
       .join(', ');
-    setBillingAddress(`${addr}${gstinLine}`);
+    setBillingAddress(`${addr}${taxLine}`);
     setShippingAddress(`${newCust.accountDisplayName} ${newCust.gstin ? `(GSTIN: ${newCust.gstin})` : ''}\n${addr}`);
-    if (newCust.state) setPlaceOfSupply(newCust.state);
+    if (newCust.isForeign || (newCust.country && newCust.country !== 'India')) {
+      setPlaceOfSupply(newCust.country ? `Other Territory (96) - Export (${newCust.country})` : 'Other Territory (96) - Export');
+      setPlaceOfSupplyChecked(true);
+    } else if (newCust.state) {
+      setPlaceOfSupply(newCust.state);
+    }
+
+    // Persist to /api/clients in background
+    try {
+      await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCust.accountDisplayName,
+          businessName: newCust.legalName || newCust.accountDisplayName,
+          country: newCust.country || (newCust.isForeign ? 'Canada' : 'India'),
+          province: newCust.state || '',
+          city: newCust.city || '',
+          contactName: newCust.contactPersonName || '',
+          contactEmail: newCust.email || '',
+          contactPhone: [newCust.dialCode, newCust.mobileNo].filter(Boolean).join(' '),
+          description: `Customer added via Finance (${newCust.isForeign ? 'Foreign Client' : 'Domestic Client'})`,
+        }),
+      });
+    } catch (e) {
+      console.warn('Note on auto-saving customer to /api/clients:', e);
+    }
   };
 
   // Row update helpers

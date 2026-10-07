@@ -818,4 +818,13 @@ export interface SundryDebtorCustomer {
   balanceType?: 'Cr' | 'Dr';
   balanceFormatted?: string;
   gstin?: string;
+  // Foreign client support fields
+  isForeign?: boolean;
+  currency?: string;
+  currencySymbol?: string;
+  dialCode?: string;
+  foreignTaxId?: string;
+  province?: string;
+  exportType?: string;
+  lutNumber?: string;
 }

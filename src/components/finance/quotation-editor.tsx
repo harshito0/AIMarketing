@@ -287,10 +287,10 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
     setCustomerName(cName);
     const found = customerList.find((c) => c.accountDisplayName === cName || c.legalName === cName);
     if (found) {
-      setCustomerPhone(found.mobileNo || '');
+      setCustomerPhone([found.dialCode, found.mobileNo].filter(Boolean).join(' ') || found.mobileNo || '');
       setCustomerEmail(found.email || '');
-      setCustomerGstin(found.gstin || found.panItTanNo || '');
-      const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode]
+      setCustomerGstin(found.gstin || found.foreignTaxId || found.panItTanNo || '');
+      const addr = [found.addressLine1, found.addressLine2, found.city, found.state, found.pincode, found.country && found.country !== 'India' ? found.country : '']
         .filter(Boolean)
         .join(', ');
       setBillingAddress(addr);
@@ -298,16 +298,37 @@ export function QuotationEditor({ initialQuotation, onSaved, onCancel }: Quotati
   };
 
   // Customer saved from drawer
-  const handleCustomerSaved = (newCust: SundryDebtorCustomer) => {
+  const handleCustomerSaved = async (newCust: SundryDebtorCustomer) => {
     setCustomerList((prev) => [newCust, ...prev]);
     setCustomerName(newCust.accountDisplayName);
-    setCustomerPhone(newCust.mobileNo || '');
+    setCustomerPhone([newCust.dialCode, newCust.mobileNo].filter(Boolean).join(' ') || newCust.mobileNo || '');
     setCustomerEmail(newCust.email || '');
-    setCustomerGstin(newCust.gstin || newCust.panItTanNo || '');
-    const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode]
+    setCustomerGstin(newCust.gstin || newCust.foreignTaxId || newCust.panItTanNo || '');
+    const addr = [newCust.addressLine1, newCust.addressLine2, newCust.city, newCust.state, newCust.pincode, newCust.country && newCust.country !== 'India' ? newCust.country : '']
       .filter(Boolean)
       .join(', ');
     setBillingAddress(addr);
+
+    // Persist to /api/clients in background
+    try {
+      await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCust.accountDisplayName,
+          businessName: newCust.legalName || newCust.accountDisplayName,
+          country: newCust.country || (newCust.isForeign ? 'Canada' : 'India'),
+          province: newCust.state || '',
+          city: newCust.city || '',
+          contactName: newCust.contactPersonName || '',
+          contactEmail: newCust.email || '',
+          contactPhone: [newCust.dialCode, newCust.mobileNo].filter(Boolean).join(' '),
+          description: `Customer added via Quotations (${newCust.isForeign ? 'Foreign Client' : 'Domestic Client'})`,
+        }),
+      });
+    } catch (e) {
+      console.warn('Note on auto-saving customer to /api/clients:', e);
+    }
   };
 
   // Row update helpers
